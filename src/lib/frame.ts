@@ -10,22 +10,22 @@ interface FrameInterface {
 }
 
 class Frame implements FrameInterface {
-  payload: Buffer;
-
-  encrypted: boolean;
+  version: number;
 
   command: COMMANDS;
 
+  payload: Buffer;
+
   packet: Buffer;
 
-  version: number;
+  encrypted: boolean;
 
   constructor() {
-    this.payload = Buffer.from('');
-    this.encrypted = false;
-    this.command = COMMANDS.UDP;
-    this.packet = Buffer.from('');
     this.version = 3.1;
+    this.command = COMMANDS.UDP;
+    this.payload = Buffer.from('');
+    this.packet = Buffer.from('');
+    this.encrypted = false;
   }
 
   setPayload(data: Buffer | object): Frame {

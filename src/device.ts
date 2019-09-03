@@ -1,3 +1,9 @@
+// Polyfills
+/* eslint-disable import/no-unassigned-import */
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
+
+// Application
 import {EventEmitter} from 'events';
 import {Socket} from 'net';
 import debug from 'debug';
