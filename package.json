@@ -17,6 +17,7 @@
     "@typescript-eslint/eslint-plugin": "^2.0.0",
     "@typescript-eslint/parser": "^2.0.0",
     "eslint-config-xo-typescript": "^0.17.0",
+    "husky": "^3.0.5",
     "typescript": "^3.5.3",
     "xo": "^0.24.0"
   },
@@ -38,5 +39,10 @@
   },
   "dependencies": {
     "debug": "^4.1.1"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm test && npm run build"
+    }
   }
 }

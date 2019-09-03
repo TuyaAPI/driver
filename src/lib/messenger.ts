@@ -5,25 +5,25 @@ import {md5} from './crypto';
 import {COMMANDS, HEADER_SIZE} from './constants';
 
 class Messenger extends EventEmitter {
-  private readonly key: string;
+  private readonly _key: string;
 
-  private readonly version: number;
+  private readonly _version: number;
 
   constructor({key, version}: {key: string; version: number}) {
     super();
 
     // Copy arguments
-    this.key = key;
-    this.version = version;
+    this._key = key;
+    this._version = version;
   }
 
-  encode(frame: Frame) {
+  encode(frame: Frame): Frame {
     frame.packet = this.wrapPacket(this.versionPacket(frame), frame.command);
 
     return frame;
   }
 
-  decode(packet: Buffer) {
+  decode(packet: Buffer): Frame {
     this.checkPacket(packet);
 
     // Get command byte
@@ -57,22 +57,21 @@ class Messenger extends EventEmitter {
     const computedCrc = crc(packet.slice(0, payloadSize + 8));
 
     if (expectedCrc !== computedCrc) {
-      // eslint-disable-next-line max-len
       throw new Error(`CRC mismatch: expected ${expectedCrc}, was ${computedCrc}. ${packet.toString('hex')}`);
     }
 
     const frame = new Frame();
 
-    frame.version = this.version;
+    frame.version = this._version;
     frame.packet = packet;
     frame.command = command;
 
     // Check if packet is encrypted
-    if (payload.indexOf(this.version.toString()) === 0) {
+    if (payload.indexOf(this._version.toString()) === 0) {
       frame.encrypted = true;
 
       // Remove packet header
-      if (this.version === 3.3) {
+      if (this._version === 3.3) {
         payload = payload.slice(15);
       } else {
         payload = payload.slice(19);
@@ -80,7 +79,7 @@ class Messenger extends EventEmitter {
 
       frame.payload = Buffer.from(payload.toString('ascii'), 'base64');
 
-      frame.decrypt(this.key);
+      frame.decrypt(this._key);
     } else {
       frame.payload = payload;
     }
@@ -88,7 +87,7 @@ class Messenger extends EventEmitter {
     return frame;
   }
 
-  checkPacket(packet: Buffer) {
+  checkPacket(packet: Buffer): void {
     // Check for length
     // At minimum requires: prefix (4), sequence (4), command (4), length (4),
     // CRC (4), and suffix (4) for 24 total bytes
@@ -112,7 +111,7 @@ class Messenger extends EventEmitter {
     }
   }
 
-  wrapPacket(packet: Buffer, command: COMMANDS) {
+  wrapPacket(packet: Buffer, command: COMMANDS): Buffer {
     const len = packet.length;
 
     const buffer = Buffer.alloc(len + 24);
@@ -135,12 +134,12 @@ class Messenger extends EventEmitter {
     return packet;
   }
 
-  versionPacket(frame: Frame) {
+  versionPacket(frame: Frame): Buffer {
     let packet = frame.payload;
 
-    if (this.version === 3.3) {
+    if (this._version === 3.3) {
       // V3.3 is always encrypted
-      frame.encrypt(this.key);
+      frame.encrypt(this._key);
       packet = frame.payload;
 
       // Check if we need an extended header, only for certain Commands
@@ -153,9 +152,9 @@ class Messenger extends EventEmitter {
         packet = buffer;
       }
     } else if (frame.encrypted) {
-      const hash = md5(`data=${frame.payload.toString('base64')}||lpv=${this.version}||${this.key}`).substr(8, 16);
+      const hash = md5(`data=${frame.payload.toString('base64')}||lpv=${this._version}||${this._key}`).substr(8, 16);
 
-      packet = Buffer.from(this.version.toString() + hash + packet.toString('base64'));
+      packet = Buffer.from(`${this._version.toString()}${hash}${packet.toString('base64')}`);
     }
 
     return packet;

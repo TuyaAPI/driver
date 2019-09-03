@@ -10,7 +10,7 @@ interface FrameInterface {
 }
 
 class Frame implements FrameInterface {
-  private _payload: Buffer;
+  payload: Buffer;
 
   encrypted: boolean;
 
@@ -21,38 +21,40 @@ class Frame implements FrameInterface {
   version: number;
 
   constructor() {
-    this.version = 3.1;
-    this.packet = Buffer.from('');
-    this.command = COMMANDS.UDP;
-    this._payload = Buffer.from('');
+    this.payload = Buffer.from('');
     this.encrypted = false;
+    this.command = COMMANDS.UDP;
+    this.packet = Buffer.from('');
+    this.version = 3.1;
   }
 
-  set payload(data: unknown) {
+  setPayload(data: Buffer | object): Frame {
     if (data instanceof Buffer) {
-      this._payload = data;
+      this.payload = data;
     } else if (typeof data === 'object') {
-      this._payload = Buffer.from(JSON.stringify(data));
+      this.payload = Buffer.from(JSON.stringify(data));
     }
+
+    return this;
   }
 
-  get payload() {
-    return this._payload;
-  }
-
-  encrypt(key: string) {
+  encrypt(key: string): Frame {
     if (!this.encrypted) {
       this.payload = encrypt(key, this.payload);
 
       this.encrypted = true;
     }
+
+    return this;
   }
 
-  decrypt(key: string) {
+  decrypt(key: string): Frame {
     if (this.encrypted) {
       this.payload = decrypt(key, this.payload);
       this.encrypted = false;
     }
+
+    return this;
   }
 }
 

@@ -86,13 +86,13 @@ class Device extends EventEmitter implements Device {
     const frame = new Frame();
 
     frame.command = COMMANDS.CONTROL;
-    frame.payload = {
+    frame.setPayload({
       gwId: this.gwId,
       devId: this.id,
       uid: '',
       t: timestamp,
       dps
-    };
+    });
 
     frame.encrypt(this.key);
 
@@ -103,10 +103,10 @@ class Device extends EventEmitter implements Device {
     const frame = new Frame();
 
     frame.command = COMMANDS.DP_QUERY;
-    frame.payload = {
+    frame.setPayload({
       gwId: this.gwId,
       devId: this.id
-    };
+    });
 
     const request = this._messenger.encode(frame);
 
@@ -171,7 +171,7 @@ class Device extends EventEmitter implements Device {
     let parsedData;
 
     try {
-      parsedData = JSON.parse(frame.payload);
+      parsedData = JSON.parse(frame.payload.toString('ascii'));
     } catch (_) {
       // Not JSON data
       return;
@@ -188,7 +188,7 @@ class Device extends EventEmitter implements Device {
     this._log('Error from socket:', error);
   }
 
-  private _log(...message: unknown): void {
+  private _log(...message: any[]): void {
     const d = debug('@tuyapi/driver');
 
     d(`${this.ip}:`, ...message);

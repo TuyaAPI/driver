@@ -73,7 +73,7 @@ const crc32Table = [
 * @param {Iterable} bytes
 * @returns {Number} Tuya CRC32
 */
-function crc32(bytes: Buffer) {
+function crc32(bytes: Buffer): number {
   let crc = 0xFFFFFFFF;
 
   for (const b of bytes) {
