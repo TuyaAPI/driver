@@ -1,0 +1,42 @@
+{
+  "name": "@tuyapi/driver",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "lint": "xo",
+    "lint-fix": "xo --fix",
+    "test": "npm run lint",
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "author": "Max Isom <hi@maxisom.me> (https://maxisom.me/)",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/debug": "^4.1.5",
+    "@typescript-eslint/eslint-plugin": "^2.0.0",
+    "@typescript-eslint/parser": "^2.0.0",
+    "eslint-config-xo-typescript": "^0.17.0",
+    "typescript": "^3.5.3",
+    "xo": "^0.24.0"
+  },
+  "xo": {
+    "space": true,
+    "extends": "xo-typescript",
+    "rules": {
+      "@typescript-eslint/indent": [
+        "error",
+        2,
+        {
+          "SwitchCase": 1
+        }
+      ]
+    },
+    "extensions": [
+      "ts"
+    ]
+  },
+  "dependencies": {
+    "debug": "^4.1.1"
+  }
+}
