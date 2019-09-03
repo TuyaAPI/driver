@@ -201,4 +201,4 @@ class Device extends EventEmitter implements Device {
   }
 }
 
-module.exports = Device;
+export default Device;

@@ -2,14 +2,16 @@
   "name": "@tuyapi/driver",
   "version": "0.1.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "files": ["dist/"],
   "scripts": {
     "lint": "xo",
     "lint-fix": "xo --fix",
     "test": "npm run lint",
     "babel": "babel dist -d dist",
     "build": "tsc && npm run babel",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "prepack": "npm run build"
   },
   "author": "Max Isom <hi@maxisom.me> (https://maxisom.me/)",
   "license": "MIT",
