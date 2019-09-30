@@ -41,12 +41,12 @@ class Messenger extends EventEmitter {
     // This field is only present in messages from the devices
     // Absent in messages sent to device
     // Should we throw here or attach the return code to the Frame and bubble up?
-    const returnCode = packet.readUInt32BE(16);
+    const returnCode = packet.readUInt32BE(16) & 0xFFFFFF00;
 
     // Get the payload
     // Adjust for messages lacking a return code
     let payload;
-    if (returnCode & 0xFFFFFF00) {
+    if (returnCode === 0) {
       payload = packet.slice(HEADER_SIZE, HEADER_SIZE + payloadSize - 8);
     } else {
       payload = packet.slice(HEADER_SIZE + 4, HEADER_SIZE + payloadSize - 8);
@@ -152,7 +152,7 @@ class Messenger extends EventEmitter {
         packet = buffer;
       }
     } else if (frame.encrypted) {
-      const hash = md5(`data=${frame.payload.toString('base64')}||lpv=${this._version}||${this._key}`).substr(8, 16);
+      const hash = md5(`data=${frame.payload.toString('base64')}||lpv=${this._version}||${this._key}`).slice(8, 24);
 
       packet = Buffer.from(`${this._version.toString()}${hash}${packet.toString('base64')}`);
     }
