@@ -17,15 +17,15 @@
   "author": "Max Isom <hi@maxisom.me> (https://maxisom.me/)",
   "license": "MIT",
   "devDependencies": {
-    "@types/debug": "^4.1.5",
-    "@typescript-eslint/eslint-plugin": "^2.0.0",
-    "@typescript-eslint/parser": "^2.0.0",
-    "babel-cli": "^6.26.0",
-    "babel-preset-env": "^1.7.0",
-    "eslint-config-xo-typescript": "^0.17.0",
-    "husky": "^3.0.5",
-    "typescript": "^3.5.3",
-    "xo": "^0.24.0"
+    "@types/debug": "4.1.5",
+    "@typescript-eslint/eslint-plugin": "2.0.0",
+    "@typescript-eslint/parser": "2.0.0",
+    "babel-cli": "6.26.0",
+    "babel-preset-env": "1.7.0",
+    "eslint-config-xo-typescript": "0.17.0",
+    "husky": "3.0.5",
+    "typescript": "3.5.3",
+    "xo": "0.24.0"
   },
   "xo": {
     "space": true,
