@@ -54,5 +54,8 @@
     "hooks": {
       "pre-commit": "npm test && npm run build"
     }
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
