@@ -183,7 +183,7 @@ class Device extends EventEmitter implements Device {
       return;
     }
 
-    if (parsedData.dps) {
+    if ('dps' in parsedData) {
       // State update event
       this._state = {...this._state, ...parsedData.dps};
       this.emit('state-change', this._state);
