@@ -1,3 +1,8 @@
+// Polyfills
+/* eslint-disable import/no-unassigned-import */
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
+
 import Device from './device';
 
 import * as Constants from './lib/constants';
