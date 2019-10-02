@@ -23,6 +23,23 @@ class Messenger extends EventEmitter {
     return frame;
   }
 
+  splitPackets(p: Buffer): Buffer[] {
+    const packets: Buffer[] = [];
+
+    const empty = Buffer.from('');
+
+    while (!p.equals(empty)) {
+      const startIndex = p.indexOf(Buffer.from('000055aa', 'hex'));
+      const endIndex = p.indexOf(Buffer.from('0000aa55', 'hex')) + 4;
+
+      packets.push(p.slice(startIndex, endIndex));
+
+      p = p.slice(endIndex, p.length);
+    }
+
+    return packets;
+  }
+
   decode(packet: Buffer): Frame {
     this.checkPacket(packet);
 
@@ -47,9 +64,9 @@ class Messenger extends EventEmitter {
     // Adjust for messages lacking a return code
     let payload;
     if (returnCode === 0) {
-      payload = packet.slice(HEADER_SIZE, HEADER_SIZE + payloadSize - 8);
-    } else {
       payload = packet.slice(HEADER_SIZE + 4, HEADER_SIZE + payloadSize - 8);
+    } else {
+      payload = packet.slice(HEADER_SIZE, HEADER_SIZE + payloadSize - 8);
     }
 
     // Check CRC

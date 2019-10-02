@@ -1,9 +1,3 @@
-// Polyfills
-/* eslint-disable import/no-unassigned-import */
-import 'core-js/stable';
-import 'regenerator-runtime/runtime';
-
-// Application
 import {EventEmitter} from 'events';
 import {Socket} from 'net';
 import debug from 'debug';
@@ -162,32 +156,34 @@ class Device extends EventEmitter implements Device {
   private _handleSocketData(data: Buffer): void {
     this._log('Received:', data.toString('hex'));
 
-    const frame = this._messenger.decode(data);
+    this._messenger.splitPackets(data).forEach(packet => {
+      const frame = this._messenger.decode(packet);
 
-    // Emit Frame as data event
-    this.emit('data', frame);
+      // Emit Frame as data event
+      this.emit('data', frame);
 
-    // Check if it's a heartbeat packet
-    if (frame.command === COMMANDS.HEART_BEAT) {
-      this._lastHeartbeat = new Date();
-      return;
-    }
+      // Check if it's a heartbeat packet
+      if (frame.command === COMMANDS.HEART_BEAT) {
+        this._lastHeartbeat = new Date();
+        return;
+      }
 
-    // Atempt to convert to JSON
-    let parsedData;
+      // Atempt to convert to JSON
+      let parsedData;
 
-    try {
-      parsedData = JSON.parse(frame.payload.toString('ascii'));
-    } catch (_) {
-      // Not JSON data
-      return;
-    }
+      try {
+        parsedData = JSON.parse(frame.payload.toString('ascii'));
+      } catch (_) {
+        // Not JSON data
+        return;
+      }
 
-    if ('dps' in parsedData) {
-      // State update event
-      this._state = {...this._state, ...parsedData.dps};
-      this.emit('state-change', this._state);
-    }
+      if ('dps' in parsedData) {
+        // State update event
+        this._state = {...this._state, ...parsedData.dps};
+        this.emit('state-change', this._state);
+      }
+    });
   }
 
   private _handleSocketError(error: Error): void {
