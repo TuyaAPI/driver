@@ -4,6 +4,7 @@ import debug from 'debug';
 import Messenger from './lib/messenger';
 import Frame from './lib/frame';
 import {COMMANDS, SUPPORTED_PROTOCOLS} from './lib/constants';
+import {DeviceError} from './lib/helpers';
 
 interface Device {
   readonly ip: string;
@@ -161,6 +162,12 @@ class Device extends EventEmitter implements Device {
 
       // Emit Frame as data event
       this.emit('data', frame);
+
+      // Check return code
+      if (frame.returnCode !== 0) {
+        // As a non-zero return code should not occur during normal operation, we throw here instead of emitting an error
+        throw new DeviceError(frame.payload.toString('ascii'));
+      }
 
       // Check if it's a heartbeat packet
       if (frame.command === COMMANDS.HEART_BEAT) {
