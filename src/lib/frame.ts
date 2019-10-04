@@ -7,6 +7,7 @@ interface FrameInterface {
   payload: Buffer;
   packet: Buffer;
   encrypted: boolean;
+  returnCode: number;
 }
 
 class Frame implements FrameInterface {
@@ -20,12 +21,15 @@ class Frame implements FrameInterface {
 
   encrypted: boolean;
 
+  returnCode: number;
+
   constructor() {
     this.version = 3.1;
     this.command = COMMANDS.UDP;
     this.payload = Buffer.from('');
     this.packet = Buffer.from('');
     this.encrypted = false;
+    this.returnCode = 0;
   }
 
   setPayload(data: Buffer | object): Frame {

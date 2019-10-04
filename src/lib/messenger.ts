@@ -57,17 +57,10 @@ class Messenger extends EventEmitter {
     // Get the return code, 0 = success
     // This field is only present in messages from the devices
     // Absent in messages sent to device
-    // Should we throw here or attach the return code to the Frame and bubble up?
-    const returnCode = packet.readUInt32BE(16) & 0xFFFFFF00;
+    const returnCode = packet.readUInt32BE(16);
 
     // Get the payload
-    // Adjust for messages lacking a return code
-    let payload;
-    if (returnCode === 0) {
-      payload = packet.slice(HEADER_SIZE + 4, HEADER_SIZE + payloadSize - 8);
-    } else {
-      payload = packet.slice(HEADER_SIZE, HEADER_SIZE + payloadSize - 8);
-    }
+    let payload = packet.slice(HEADER_SIZE + 4, HEADER_SIZE + payloadSize - 8);
 
     // Check CRC
     const expectedCrc = packet.readInt32BE(HEADER_SIZE + payloadSize - 8);
@@ -82,6 +75,7 @@ class Messenger extends EventEmitter {
     frame.version = this._version;
     frame.packet = packet;
     frame.command = command;
+    frame.returnCode = returnCode;
 
     // Check if packet is encrypted
     if (payload.indexOf(this._version.toString()) === 0) {
