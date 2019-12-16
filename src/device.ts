@@ -69,6 +69,9 @@ class Device extends EventEmitter implements Device {
     // Connect to device
     this._log('Connecting...');
     this._socket.connect(this.port, this.ip);
+
+    // TODO: we should probably set a timeout on connect. Otherwise we just rely
+    // on TCP to retry sending SYN packets.
   }
 
   disconnect(): void {
