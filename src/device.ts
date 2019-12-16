@@ -144,6 +144,8 @@ class Device extends EventEmitter implements Device {
 
     this.emit('connect');
 
+    this._lastHeartbeat = new Date();
+
     // Start heartbeat pings
     this._recursiveHeartbeat();
   }
