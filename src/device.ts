@@ -154,6 +154,8 @@ class Device extends EventEmitter implements Device {
     this.connected = false;
 
     this._log('Disconnected.');
+
+    this.emit('disconnected');
   }
 
   private _handleSocketData(data: Buffer): void {
