@@ -26,7 +26,7 @@ class Device extends EventEmitter implements Device {
   private _lastHeartbeat: Date;
 
   constructor({ip, id, gwId = id, key, version = 3.1, port = 6668}: {
-    ip: string; port: number; key: string; id: string; gwId: string; version: number;
+    ip: string; port: number; key: string; id: string; gwId?: string; version?: number;
   }) {
     super();
 
