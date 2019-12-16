@@ -149,6 +149,9 @@ class Device extends EventEmitter implements Device {
 
     this._lastHeartbeat = new Date();
 
+    // Fetch default property
+    this.update();
+
     // Start heartbeat pings
     this._recursiveHeartbeat();
   }
