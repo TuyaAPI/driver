@@ -26,7 +26,7 @@ class Device extends EventEmitter implements Device {
   private _lastHeartbeat: Date;
 
   constructor({ip, id, gwId = id, key, version = 3.1, port = 6668}: {
-    ip: string; port: number; key: string; id: string; gwId: string; version: number;
+    ip: string; port?: number; key: string; id: string; gwId?: string; version?: number;
   }) {
     super();
 
@@ -69,6 +69,9 @@ class Device extends EventEmitter implements Device {
     // Connect to device
     this._log('Connecting...');
     this._socket.connect(this.port, this.ip);
+
+    // TODO: we should probably set a timeout on connect. Otherwise we just rely
+    // on TCP to retry sending SYN packets.
   }
 
   disconnect(): void {
@@ -144,6 +147,11 @@ class Device extends EventEmitter implements Device {
 
     this.emit('connect');
 
+    this._lastHeartbeat = new Date();
+
+    // Fetch default property
+    this.update();
+
     // Start heartbeat pings
     this._recursiveHeartbeat();
   }
@@ -152,6 +160,8 @@ class Device extends EventEmitter implements Device {
     this.connected = false;
 
     this._log('Disconnected.');
+
+    this.emit('disconnected');
   }
 
   private _handleSocketData(data: Buffer): void {
