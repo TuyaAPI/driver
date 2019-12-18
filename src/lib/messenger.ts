@@ -59,8 +59,14 @@ class Messenger extends EventEmitter {
     // Absent in messages sent to device
     const returnCode = packet.readUInt32BE(16);
 
-    // Get the payload
-    let payload = packet.slice(HEADER_SIZE + 4, HEADER_SIZE + payloadSize - 8);
+    // Get the payloads
+    let offset = HEADER_SIZE;
+
+    if (returnCode === 0) {
+      offset = HEADER_SIZE + 4;
+    }
+
+    let payload = packet.slice(offset, offset + payloadSize - 8);
 
     // Check CRC
     const expectedCrc = packet.readInt32BE(HEADER_SIZE + payloadSize - 8);
