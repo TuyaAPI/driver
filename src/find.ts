@@ -1,5 +1,6 @@
 import {EventEmitter} from 'events';
 import * as dgram from 'dgram';
+import debug0 from 'debug';
 import Messenger from './lib/messenger';
 
 class Find extends EventEmitter {
@@ -18,6 +19,41 @@ class Find extends EventEmitter {
     this._listener.on('message', this._broadcastHandler.bind(this));
 
     this._listenerEncrypted.on('message', this._broadcastHandler.bind(this));
+  }
+
+  static async find(id: string, key: string): Promise<string> {
+    const debug = (...args: any): void => {
+      debug0('@tuyapi/driver:find')({id, key}, 'find', ...args);
+    };
+
+    return new Promise((resolve, reject) => {
+      const find = new Find();
+
+      function stop(): void {
+        find.removeAllListeners();
+        find.stop();
+      }
+
+      find.on('broadcast', data => {
+        const {ip} = data;
+        if (data.gwId === id) {
+          debug('ip found', {ip});
+
+          stop();
+          resolve(ip);
+        } else {
+          debug('different device found', {data});
+        }
+      });
+
+      find.on('error', error => {
+        debug('find error');
+        stop();
+        reject(error);
+      });
+
+      find.start();
+    });
   }
 
   start(): void {
