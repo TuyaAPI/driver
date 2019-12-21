@@ -66,7 +66,7 @@ class Messenger extends EventEmitter {
       offset = HEADER_SIZE + 4;
     }
 
-    let payload = packet.slice(offset, HEADER_SIZE + payloadSize - 8);
+    let payload = packet.slice(offset, offset + payloadSize - 8);
 
     // Check CRC
     const expectedCrc = packet.readInt32BE(HEADER_SIZE + payloadSize - 8);
