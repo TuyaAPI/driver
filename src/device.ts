@@ -25,8 +25,10 @@ class Device extends EventEmitter implements Device {
 
   private _lastHeartbeat: Date;
 
-  constructor({ip, id, gwId = id, key, version = 3.1, port = 6668}: {
-    ip: string; port?: number; key: string; id: string; gwId?: string; version?: number;
+  private readonly _heartbeatInterval: number;
+
+  constructor({ip, id, gwId = id, key, version = 3.1, port = 6668, heartbeatInterval = 1000}: {
+    ip: string; port?: number; key: string; id: string; gwId?: string; version?: number; heartbeatInterval?: number;
   }) {
     super();
 
@@ -52,6 +54,9 @@ class Device extends EventEmitter implements Device {
 
     // Set last heartbeat
     this._lastHeartbeat = new Date();
+
+    // Set up heartbeating interval
+    this._heartbeatInterval = heartbeatInterval;
 
     // Set up socket handlers
     this._socket.on('connect', this._handleSocketConnect.bind(this));
@@ -124,8 +129,7 @@ class Device extends EventEmitter implements Device {
   }
 
   private _recursiveHeartbeat(): void {
-    // TODO: variable timeout, i.e. this.heartbeatTimeout = 2000
-    if (new Date().getTime() - this._lastHeartbeat.getTime() > 2000) {
+    if (new Date().getTime() - this._lastHeartbeat.getTime() > this._heartbeatInterval * 2) {
       // Heartbeat timeout
       // Should we emit error on timeout?
       return this.disconnect();
@@ -137,7 +141,7 @@ class Device extends EventEmitter implements Device {
 
     this.send(this._messenger.encode(frame));
 
-    setTimeout(this._recursiveHeartbeat.bind(this), 1000);
+    setTimeout(this._recursiveHeartbeat.bind(this), this._heartbeatInterval);
   }
 
   private _handleSocketConnect(): void {
