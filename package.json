@@ -40,7 +40,7 @@
     "eslint-config-xo-typescript": "0.24.1",
     "husky": "4.2.3",
     "typescript": "3.7.5",
-    "xo": "0.26.0"
+    "xo": "0.40.2"
   },
   "xo": {
     "space": true,
