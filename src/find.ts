@@ -7,10 +7,10 @@ class Find extends EventEmitter {
   private readonly _listener: dgram.Socket;
   private readonly _listenerEncrypted: dgram.Socket;
 
-  constructor() {
+  constructor(version: number = 3.3) {
     super();
 
-    this._messenger = new Messenger({key: '', version: 0});
+    this._messenger = new Messenger({key: '', version});
 
     this._listener = dgram.createSocket({type: 'udp4', reuseAddr: true});
     this._listenerEncrypted = dgram.createSocket({type: 'udp4', reuseAddr: true});
@@ -35,8 +35,10 @@ class Find extends EventEmitter {
   private _broadcastHandler(message: Buffer): void {
     try {
       const frame = this._messenger.decode(message);
-
-      const payload = JSON.parse(frame.payload.toString('ascii'));
+      //console.log(frame);
+      const body = frame.payload.toString('ascii');
+      console.log(body);
+      const payload = JSON.parse(body);
 
       this.emit('broadcast', payload);
     } catch (error) {

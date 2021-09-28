@@ -84,17 +84,10 @@ class Messenger extends EventEmitter {
     frame.returnCode = returnCode;
 
     // Check if packet is encrypted
-    if (payload.indexOf(this._version.toString()) === 0) {
+    if (this._version === 3.3 || payload.indexOf(this._version.toString()) === 0) {
       frame.encrypted = true;
 
-      // Remove packet header
-      if (this._version === 3.3) {
-        payload = payload.slice(15);
-      } else {
-        payload = payload.slice(19);
-      }
-
-      frame.payload = Buffer.from(payload.toString('ascii'), 'base64');
+      frame.payload = payload;
 
       frame.decrypt(this._key);
     } else {
