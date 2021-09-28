@@ -27,7 +27,8 @@
     "build": "tsc && npm run babel",
     "watch": "tsc --watch",
     "prepack": "npm run build",
-    "travis": "npm test && npm run build"
+    "travis": "npm test && npm run build",
+    "start": "ts-node index.ts"
   },
   "author": "Max Isom <hi@maxisom.me> (https://maxisom.me/)",
   "license": "MIT",
