@@ -55,6 +55,7 @@ describe("find", () => {
 
     await promise;
   });
+
   it("broadcast", async () => {
     const { promise, resolveFn } = createPromise();
     find.on("broadcast", (message: unknown) => {
@@ -73,6 +74,7 @@ describe("find", () => {
 
     await promise;
   });
+  
   it("finds all devices", async () => {
     const { promise, resolveFn } = createPromise();
     const found: Record<string, DiscoveryMessage> = {};

@@ -1,10 +1,10 @@
-import {EventEmitter} from 'events';
-import {Socket} from 'net';
-import debug from 'debug';
-import Messenger from './lib/messenger';
-import Frame from './lib/frame';
-import {COMMANDS, SUPPORTED_PROTOCOLS} from './lib/constants';
-import {DeviceError} from './lib/helpers';
+import { EventEmitter } from "events";
+import { Socket } from "net";
+import debug from "debug";
+import Messenger from "./lib/messenger";
+import Frame from "./lib/frame";
+import { COMMANDS, SUPPORTED_PROTOCOLS } from "./lib/constants";
+import { DeviceError } from "./lib/helpers";
 
 interface Device {
   readonly ip: string;
@@ -17,7 +17,7 @@ interface Device {
 }
 
 export type DeviceOptions = {
-  ip?: string;
+  ip: string;
   port?: number;
   key: string | Buffer;
   id: string;
@@ -37,7 +37,15 @@ class Device extends EventEmitter implements Device {
 
   private readonly _heartbeatInterval: number;
 
-  constructor({ip, id, gwId = id, key, version = 3.1, port = 6668, heartbeatInterval = 1000}: DeviceOptions) {
+  constructor({
+    ip,
+    id,
+    gwId = id,
+    key,
+    version = 3.1,
+    port = 6668,
+    heartbeatInterval = 1000,
+  }: DeviceOptions) {
     super();
 
     // Check protocol version
@@ -46,10 +54,10 @@ class Device extends EventEmitter implements Device {
     }
 
     // Copy arguments
-    Object.assign(this, {ip, port, key, id, gwId, version});
+    Object.assign(this, { ip, port, key, id, gwId, version });
 
     // Create messenger
-    this._messenger = new Messenger({key, version});
+    this._messenger = new Messenger({ key, version });
 
     // Init with empty state
     this._state = {};
@@ -67,10 +75,10 @@ class Device extends EventEmitter implements Device {
     this._heartbeatInterval = heartbeatInterval;
 
     // Set up socket handlers
-    this._socket.on('connect', this._handleSocketConnect.bind(this));
-    this._socket.on('close', this._handleSocketClose.bind(this));
-    this._socket.on('data', this._handleSocketData.bind(this));
-    this._socket.on('error', this._handleSocketError.bind(this));
+    this._socket.on("connect", this._handleSocketConnect.bind(this));
+    this._socket.on("close", this._handleSocketClose.bind(this));
+    this._socket.on("data", this._handleSocketData.bind(this));
+    this._socket.on("error", this._handleSocketError.bind(this));
   }
 
   connect(): void {
@@ -80,7 +88,7 @@ class Device extends EventEmitter implements Device {
     }
 
     // Connect to device
-    this._log('Connecting...');
+    this._log("Connecting...");
     this._socket.connect(this.port, this.ip);
 
     // TODO: we should probably set a timeout on connect. Otherwise we just rely
@@ -106,9 +114,9 @@ class Device extends EventEmitter implements Device {
     frame.setPayload({
       gwId: this.gwId,
       devId: this.id,
-      uid: '',
+      uid: "",
       t: timestamp,
-      dps
+      dps,
     });
 
     frame.encrypt(this.key);
@@ -122,7 +130,7 @@ class Device extends EventEmitter implements Device {
     frame.command = COMMANDS.DP_QUERY;
     frame.setPayload({
       gwId: this.gwId,
-      devId: this.id
+      devId: this.id,
     });
 
     const request = this._messenger.encode(frame);
@@ -131,13 +139,16 @@ class Device extends EventEmitter implements Device {
   }
 
   send(frame: Frame): void {
-    this._log('Sending:', frame.packet.toString('hex'));
+    this._log("Sending:", frame.packet.toString("hex"));
 
     this._socket.write(frame.packet);
   }
 
   private _recursiveHeartbeat(): void {
-    if (new Date().getTime() - this._lastHeartbeat.getTime() > this._heartbeatInterval * 2) {
+    if (
+      new Date().getTime() - this._lastHeartbeat.getTime() >
+      this._heartbeatInterval * 2
+    ) {
       // Heartbeat timeout
       // Should we emit error on timeout?
       return this.disconnect();
@@ -155,9 +166,9 @@ class Device extends EventEmitter implements Device {
   private _handleSocketConnect(): void {
     this.connected = true;
 
-    this._log('Connected.');
+    this._log("Connected.");
 
-    this.emit('connect');
+    this.emit("connected");
 
     this._lastHeartbeat = new Date();
 
@@ -171,56 +182,60 @@ class Device extends EventEmitter implements Device {
   private _handleSocketClose(): void {
     this.connected = false;
 
-    this._log('Disconnected.');
+    this._log("Disconnected.");
 
-    this.emit('disconnected');
+    this.emit("disconnected");
   }
 
   private _handleSocketData(data: Buffer): void {
-    this._log('Received:', data.toString('hex'));
+    this._log("Received:", data.toString("hex"));
 
-    this._messenger.splitPackets(data).forEach(packet => {
-      const frame = this._messenger.decode(packet);
-
-      // Emit Frame as data event
-      this.emit('data', frame);
-
-      // Check return code
-      if (frame.returnCode !== 0) {
-        // As a non-zero return code should not occur during normal operation, we throw here instead of emitting an error
-        throw new DeviceError(frame.payload.toString('ascii'));
-      }
-
-      // Check if it's a heartbeat packet
-      if (frame.command === COMMANDS.HEART_BEAT) {
-        this._lastHeartbeat = new Date();
-        return;
-      }
-
-      // Atempt to convert to JSON
-      let parsedData;
-
+    this._messenger.splitPackets(data).forEach((packet) => {
       try {
-        parsedData = JSON.parse(frame.payload.toString('ascii'));
-      } catch (_) {
-        // Not JSON data
-        return;
-      }
+        const frame = this._messenger.decode(packet);
 
-      if ('dps' in parsedData) {
-        // State update event
-        this._state = {...this._state, ...parsedData.dps};
-        this.emit('state-change', this._state);
+        // Emit Frame as data event
+        this.emit("data", frame);
+
+        // Check return code
+        if (frame.returnCode !== 0) {
+          // As a non-zero return code should not occur during normal operation, we throw here instead of emitting an error
+          throw new DeviceError(frame.payload.toString("ascii"));
+        }
+
+        // Check if it's a heartbeat packet
+        if (frame.command === COMMANDS.HEART_BEAT) {
+          this._lastHeartbeat = new Date();
+          return;
+        }
+
+        // Atempt to convert to JSON
+        let parsedData;
+
+        try {
+          parsedData = JSON.parse(frame.payload.toString("ascii"));
+        } catch (_) {
+          // Not JSON data
+          return;
+        }
+
+        if ("dps" in parsedData) {
+          // State update event
+          this._state = { ...this._state, ...parsedData.dps };
+          this.emit("state-change", this._state);
+        }
+      } catch (error) {
+        this.emit("error", error);
       }
     });
   }
 
   private _handleSocketError(error: Error): void {
-    this._log('Error from socket:', error);
+    this._log("Error from socket:", error);
   }
 
   private _log(...message: any[]): void {
-    const d = debug('@tuyapi/driver');
+    const d = debug("@tuyapi/driver");
 
     d(`${this.ip}:`, ...message);
   }

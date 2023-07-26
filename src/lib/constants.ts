@@ -1,4 +1,4 @@
-const SUPPORTED_PROTOCOLS = [3.1, 3.3];
+const SUPPORTED_PROTOCOLS = [3.1, 3.3, 3.4, 3.5];
 
 const UDP_KEY = 'yGAdlopoPVldABfn';
 
