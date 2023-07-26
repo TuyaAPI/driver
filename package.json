@@ -22,7 +22,7 @@
   "scripts": {
     "lint": "xo",
     "lint-fix": "xo --fix",
-    "test": "npm run lint",
+    "test": "vitest",
     "babel": "babel dist -d dist",
     "build": "tsc && npm run babel",
     "watch": "tsc --watch",
@@ -34,15 +34,16 @@
   "license": "MIT",
   "devDependencies": {
     "@types/debug": "4.1.5",
-    "@typescript-eslint/eslint-plugin": "2.12.0",
-    "@typescript-eslint/parser": "2.12.0",
+    "@typescript-eslint/eslint-plugin": "2.19.2",
+    "@typescript-eslint/parser": "2.19.2",
     "babel-cli": "6.26.0",
     "babel-preset-env": "1.7.0",
-    "eslint-config-xo-typescript": "0.23.0",
-    "husky": "3.1.0",
+    "eslint-config-xo-typescript": "0.24.1",
+    "husky": "4.2.3",
     "ts-node": "^10.2.1",
-    "typescript": "3.7.4",
-    "xo": "0.25.3"
+    "typescript": "3.7.5",
+    "vitest": "^0.33.0",
+    "xo": "0.26.0"
   },
   "xo": {
     "space": true,

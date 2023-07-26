@@ -1,15 +1,21 @@
-import {EventEmitter} from 'events';
-import Frame from './frame';
-import crc from './crc';
-import {md5} from './crypto';
-import {COMMANDS, HEADER_SIZE} from './constants';
+import { EventEmitter } from "events";
+import Frame from "./frame";
+import crc from "./crc";
+import { hmac, md5 } from "./crypto";
+import { COMMANDS, HEADER_SIZE } from "./constants";
 
 class Messenger extends EventEmitter {
-  private readonly _key: string;
+  private readonly _key: string | Buffer;
 
   private readonly _version: number;
 
-  constructor({key, version}: {key: string; version: number}) {
+  constructor({
+    key,
+    version = 3.3,
+  }: {
+    key: string | Buffer;
+    version?: number;
+  }) {
     super();
 
     // Copy arguments
@@ -26,11 +32,11 @@ class Messenger extends EventEmitter {
   splitPackets(p: Buffer): Buffer[] {
     const packets: Buffer[] = [];
 
-    const empty = Buffer.from('');
+    const empty = Buffer.from("");
 
     while (!p.equals(empty)) {
-      const startIndex = p.indexOf(Buffer.from('000055aa', 'hex'));
-      const endIndex = p.indexOf(Buffer.from('0000aa55', 'hex')) + 4;
+      const startIndex = p.indexOf(Buffer.from("000055aa", "hex"));
+      const endIndex = p.indexOf(Buffer.from("0000aa55", "hex")) + 4;
 
       packets.push(p.slice(startIndex, endIndex));
 
@@ -41,40 +47,7 @@ class Messenger extends EventEmitter {
   }
 
   decode(packet: Buffer): Frame {
-    this.checkPacket(packet);
-
-    // Get command byte
-    const command = packet.readUInt32BE(8);
-
-    // Get payload size
-    const payloadSize = packet.readUInt32BE(12);
-
-    // Check for payload
-    if (packet.length - 8 < payloadSize) {
-      throw new TypeError(`Packet missing payload: payload has length ${payloadSize}.`);
-    }
-
-    // Get the return code, 0 = success
-    // This field is only present in messages from the devices
-    // Absent in messages sent to device
-    const returnCode = packet.readUInt32BE(16);
-
-    // Get the payloads
-    let offset = HEADER_SIZE;
-
-    if (returnCode === 0) {
-      offset = HEADER_SIZE + 4;
-    }
-
-    let payload = packet.slice(offset, HEADER_SIZE + payloadSize - 8);
-
-    // Check CRC
-    const expectedCrc = packet.readInt32BE(HEADER_SIZE + payloadSize - 8);
-    const computedCrc = crc(packet.slice(0, payloadSize + 8));
-
-    if (expectedCrc !== computedCrc) {
-      throw new Error(`CRC mismatch: expected ${expectedCrc}, was ${computedCrc}. ${packet.toString('hex')}`);
-    }
+    const { command, returnCode, payload, leftover } = this.parsePacket(packet);
 
     const frame = new Frame();
 
@@ -82,22 +55,95 @@ class Messenger extends EventEmitter {
     frame.packet = packet;
     frame.command = command;
     frame.returnCode = returnCode;
+    frame.payload = payload;
 
     // Check if packet is encrypted
-    if (this._version === 3.3 || payload.indexOf(this._version.toString()) === 0) {
+    if (
+      this._version >= 3.3 ||
+      payload.indexOf(this._version.toString()) === 0
+    ) {
       frame.encrypted = true;
-
-      frame.payload = payload;
-
       frame.decrypt(this._key);
     } else {
       frame.payload = payload;
     }
 
+    // TODO: leftover can contain another packet, so we should parse it
     return frame;
   }
 
-  checkPacket(packet: Buffer): void {
+  private parsePacket(buffer: Buffer) {
+    const { packet, leftover } = this.checkPacket(buffer);
+
+    const sequenceN = packet.readUInt32BE(4);
+    const command = packet.readUInt32BE(8);
+    const payloadSize = packet.readUInt32BE(12);
+
+    if (packet.length - 8 < payloadSize) {
+      throw new TypeError(
+        `Packet missing payload: payload has length ${payloadSize}.`
+      );
+    }
+
+    const packageFromDiscovery =
+      command === COMMANDS.UDP ||
+      command === COMMANDS.UDP_NEW ||
+      command === COMMANDS.BROADCAST_LPV34;
+
+    // Get the return code, 0 = success
+    // This field is only present in messages from the devices
+    // Absent in messages sent to device
+    const returnCode = packet.readUInt32BE(16);
+
+    const offset = returnCode & 0xffffff00 ? HEADER_SIZE : HEADER_SIZE + 4;
+    const length =
+      this._version === 3.4 && !packageFromDiscovery
+        ? HEADER_SIZE + payloadSize - 36
+        : HEADER_SIZE + payloadSize - 8;
+
+    const payload = packet.slice(offset, length);
+
+    // Check CRC
+    this.checkCrc(packet, payloadSize, packageFromDiscovery);
+    return { payload, leftover, command, sequenceN, returnCode };
+  }
+
+  private checkCrc(
+    buffer: Buffer,
+    payloadSize: number,
+    packageFromDiscovery: boolean
+  ) {
+    if (this._version === 3.4 && !packageFromDiscovery) {
+      const expectedCrc = buffer
+        .slice(HEADER_SIZE + payloadSize - 36, buffer.length - 4)
+        .toString("hex");
+      const computedCrc = hmac(
+        this._key,
+        buffer.slice(0, HEADER_SIZE + payloadSize - 36)
+      ).toString("hex");
+
+      if (expectedCrc !== computedCrc) {
+        throw new Error(
+          `HMAC mismatch: expected ${expectedCrc}, was ${computedCrc}. ${buffer.toString(
+            "hex"
+          )}`
+        );
+      }
+    } else {
+      const expectedCrc = buffer.readInt32BE(HEADER_SIZE + payloadSize - 8);
+      const computedCrc = crc(buffer.slice(0, payloadSize + 8));
+
+      if (expectedCrc !== computedCrc) {
+        throw new Error(
+          `CRC mismatch: expected ${expectedCrc}, was ${computedCrc}. ${buffer.toString(
+            "hex"
+          )}`
+        );
+      }
+    }
+  }
+
+  checkPacket(packet: Buffer) {
     // Check for length
     // At minimum requires: prefix (4), sequence (4), command (4), length (4),
     // CRC (4), and suffix (4) for 24 total bytes
@@ -109,16 +155,25 @@ class Messenger extends EventEmitter {
     // Check for prefix
     const prefix = packet.readUInt32BE(0);
 
-    if (prefix !== 0x000055AA) {
-      throw new TypeError(`Prefix does not match: ${packet.toString('hex')}`);
+    if (prefix !== 0x000055aa) {
+      throw new TypeError(`Prefix does not match: ${packet.toString("hex")}`);
     }
 
     // Check for suffix
+    const suffixLocation = packet.indexOf("0000AA55", 0, "hex");
+
+    let leftover: Buffer | undefined = undefined;
+    if (suffixLocation !== packet.length - 4) {
+      leftover = packet.slice(suffixLocation + 4);
+      packet = packet.slice(0, suffixLocation + 4);
+    }
     const suffix = packet.readUInt32BE(packet.length - 4);
 
-    if (suffix !== 0x0000AA55) {
-      throw new TypeError(`Suffix does not match: ${packet.toString('hex')}`);
+    if (suffix !== 0x0000aa55) {
+      throw new TypeError(`Suffix does not match: ${packet.toString("hex")}`);
     }
+
+    return { leftover, packet };
   }
 
   wrapPacket(packet: Buffer, command: COMMANDS): Buffer {
@@ -127,7 +182,7 @@ class Messenger extends EventEmitter {
     const buffer = Buffer.alloc(len + 24);
 
     // Add prefix, command, and length
-    buffer.writeUInt32BE(0x000055AA, 0);
+    buffer.writeUInt32BE(0x000055aa, 0);
     buffer.writeUInt32BE(command, 8);
     buffer.writeUInt32BE(len + 8, 12);
 
@@ -137,7 +192,7 @@ class Messenger extends EventEmitter {
     const code = crc(buffer.slice(0, len + 16));
 
     buffer.writeInt32BE(code, len + 16);
-    buffer.writeUInt32BE(0x0000AA55, len + 20);
+    buffer.writeUInt32BE(0x0000aa55, len + 20);
 
     packet = buffer;
 
@@ -156,15 +211,21 @@ class Messenger extends EventEmitter {
       if (frame.command !== COMMANDS.DP_QUERY) {
         // Add 3.3 header
         const buffer = Buffer.alloc(packet.length + 15);
-        Buffer.from('3.3').copy(buffer, 0);
+        Buffer.from("3.3").copy(buffer, 0);
         packet.copy(buffer, 15);
 
         packet = buffer;
       }
     } else if (frame.encrypted) {
-      const hash = md5(`data=${frame.payload.toString('base64')}||lpv=${this._version}||${this._key}`).slice(8, 24);
+      const hash = md5(
+        `data=${frame.payload.toString("base64")}||lpv=${this._version}||${
+          this._key
+        }`
+      ).slice(8, 24);
 
-      packet = Buffer.from(`${this._version.toString()}${hash}${packet.toString('base64')}`);
+      packet = Buffer.from(
+        `${this._version.toString()}${hash}${packet.toString("base64")}`
+      );
     }
 
     return packet;

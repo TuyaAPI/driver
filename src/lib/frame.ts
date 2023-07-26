@@ -42,7 +42,7 @@ class Frame implements FrameInterface {
     return this;
   }
 
-  encrypt(key: string): Frame {
+  encrypt(key: string | Buffer): Frame {
     if (!this.encrypted) {
       this.payload = encrypt(key, this.payload);
 
@@ -52,7 +52,7 @@ class Frame implements FrameInterface {
     return this;
   }
 
-  decrypt(key: string): Frame {
+  decrypt(key: string | Buffer): Frame {
     if (this.encrypted) {
       this.payload = decrypt(key, this.payload);
       this.encrypted = false;

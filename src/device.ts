@@ -16,6 +16,16 @@ interface Device {
   connected: boolean;
 }
 
+export type DeviceOptions = {
+  ip?: string;
+  port?: number;
+  key: string | Buffer;
+  id: string;
+  gwId?: string;
+  version?: number;
+  heartbeatInterval?: number;
+};
+
 class Device extends EventEmitter implements Device {
   private readonly _messenger: Messenger;
 
@@ -27,9 +37,7 @@ class Device extends EventEmitter implements Device {
 
   private readonly _heartbeatInterval: number;
 
-  constructor({ip, id, gwId = id, key, version = 3.1, port = 6668, heartbeatInterval = 1000}: {
-    ip: string; port?: number; key: string; id: string; gwId?: string; version?: number; heartbeatInterval?: number;
-  }) {
+  constructor({ip, id, gwId = id, key, version = 3.1, port = 6668, heartbeatInterval = 1000}: DeviceOptions) {
     super();
 
     // Check protocol version
