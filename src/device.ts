@@ -31,7 +31,7 @@ class Device extends EventEmitter implements Device {
 
   private readonly _socket: Socket;
 
-  private _state: object;
+  private _state: Record<string, string | number | boolean | unknown>;
 
   private _lastHeartbeat: Date;
 
@@ -190,7 +190,8 @@ class Device extends EventEmitter implements Device {
   private _handleSocketData(data: Buffer): void {
     this._log("Received:", data.toString("hex"));
 
-    this._messenger.splitPackets(data).forEach((packet) => {
+    const packets = this._messenger.splitPackets(data);
+    packets.forEach((packet) => {
       try {
         const frame = this._messenger.decode(packet);
 

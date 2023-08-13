@@ -38,10 +38,10 @@ export function decrypt(key: string | Buffer, data: Buffer): Buffer {
     const decipher = createDecipheriv("aes-128-ecb", key, null);
     return Buffer.concat([decipher.update(data), decipher.final()]);
   } catch (err) {
-    // if (key !== UDP_HASHED_KEY) {
-    //   // Try the universal key, in case it's a new UDP message format
-    //   return decrypt(UDP_HASHED_KEY, data);
-    // }
+    if (key !== UDP_HASHED_KEY) {
+      // Try the universal key, in case it's a new UDP message format
+      return decrypt(UDP_HASHED_KEY, data);
+    }
     throw err;
   }
 }

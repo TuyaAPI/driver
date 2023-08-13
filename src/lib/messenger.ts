@@ -57,15 +57,18 @@ class Messenger extends EventEmitter {
     frame.returnCode = returnCode;
     frame.payload = payload;
 
-    // Check if packet is encrypted
-    if (
-      this._version >= 3.3 ||
-      payload.indexOf(this._version.toString()) === 0
-    ) {
-      frame.encrypted = true;
-      frame.decrypt(this._key);
-    } else {
-      frame.payload = payload;
+    if (payload.length > 0) {
+      const payloadVersion = payload.slice(15).toString("ascii");
+      // Check if packet is encrypted
+      if (
+        this._version >= 3.3 ||
+        payload.indexOf(this._version.toString()) === 0
+      ) {
+        frame.encrypted = true;
+        frame.decrypt(this._key);
+      } else {
+        frame.payload = payload;
+      }
     }
 
     // TODO: leftover can contain another packet, so we should parse it
