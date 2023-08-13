@@ -82,7 +82,7 @@ describe("find", () => {
     find.on("broadcast", (message: DiscoveryMessage) => {
         found[message.gwId] = message;
         toFind = toFind.filter((device) => device.id !== message.gwId);
-        console.log(`found ${message.gwId}, ${toFind.length} left`);
+        console.log(`found ${message.gwId} at ${message.ip}, ${toFind.length} left`);
         if (toFind.length === 0) {
             resolveFn(found);
         }

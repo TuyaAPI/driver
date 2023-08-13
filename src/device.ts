@@ -42,7 +42,7 @@ class Device extends EventEmitter implements Device {
     id,
     gwId = id,
     key,
-    version = 3.1,
+    version = 3.3,
     port = 6668,
     heartbeatInterval = 1000,
   }: DeviceOptions) {
@@ -195,7 +195,7 @@ class Device extends EventEmitter implements Device {
         const frame = this._messenger.decode(packet);
 
         // Emit Frame as data event
-        this.emit("data", frame);
+        this.emit("rawData", frame);
 
         // Check return code
         if (frame.returnCode !== 0) {
@@ -214,6 +214,7 @@ class Device extends EventEmitter implements Device {
 
         try {
           parsedData = JSON.parse(frame.payload.toString("ascii"));
+          this.emit("data", parsedData);
         } catch (_) {
           // Not JSON data
           return;

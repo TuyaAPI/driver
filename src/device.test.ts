@@ -1,4 +1,5 @@
 import Device from "./device";
+import Frame from "./lib/frame";
 
 const deviceOpts = {
   ip: "192.168.1.61",
@@ -6,39 +7,40 @@ const deviceOpts = {
   key: "d1b4fdb900ec83d4",
   version: 3.3
 };
-function createPromise() {
+function createPromise<T>() {
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  let resolveFn: (arg0: unknown) => void = () => {};
-  let rejectFn: (arg0: unknown) => void = () => {};
+  let resolve: (arg0: T) => void = () => {};
+  let reject: (arg0: unknown) => void = () => {};
 
-  const promise = new Promise((resolve, reject) => {
-    resolveFn = resolve;
-    rejectFn = reject;
+  const promise = new Promise<T>((promiseResolve, promiseReject) => {
+    resolve = promiseResolve;
+    reject = promiseReject;
   });
 
-  return { promise, resolveFn, rejectFn };
+  return { promise, resolve, reject };
+}
+
+function subscribeToEvent<T>(device: Device, event: string) {
+  const { promise, resolve, reject } = createPromise<T>();
+  device.on(event, (data) => {
+    resolve(data as T);
+  });
+  device.on("error", (err) => {
+    reject(err);
+  });
+  device.on("disconnected", () => {
+    reject("disconnected");
+  });
+  
+  return promise;
 }
 
 describe("device", () => {
   const device = new Device(deviceOpts);
-  const {
-    promise: dataReceived,
-    resolveFn: resolveData,
-    rejectFn: rejectData,
-  } = createPromise();
-  device.on("data", (data) => {
-    resolveData(data);
-  });
-  device.on("error", (err) => {
-    console.error(err);
-    rejectData(err);
-  });
-  device.on("disconnected", () => {
-    console.log("disconnected");
-    rejectData("disconnected");
-  });
+  const dataReceived = subscribeToEvent<Frame>(device, "rawData");
+
   it("can connect", async () => {
-    const { promise, resolveFn } = createPromise();
+    const { promise, resolve: resolveFn } = createPromise();
     device.on("connected", () => {
       console.log("connected");
       resolveFn(true);
@@ -48,8 +50,13 @@ describe("device", () => {
     await promise;
   });
 
-  it("receives data", async () => {
+  it("receives raw data", async () => {
     const data = await dataReceived;
-    console.log("data", data);
+    console.log("rawData", data);
+
+    const json = JSON.parse(data.payload.toString("ascii"));
+    console.log("json", json);
+
+    expect(json).toHaveProperty("dps");
   });
 });
