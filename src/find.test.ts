@@ -2,22 +2,13 @@ import { createHash } from "crypto";
 import Find, { DiscoveryMessage } from "./find";
 import Messenger from "./lib/messenger";
 import { devices } from "./devices.conf";
+import { createPromise } from "./helpers";
+import Device from "./device";
 
 const UDP_KEY = "yGAdlopoPVldABfn";
 const UDP_HASHED_KEY = createHash("md5")
   .update(UDP_KEY, "utf8")
   .digest();
-
-function createPromise() {
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
-  let resolveFn: (arg0: unknown) => void = () => {};
-
-  const promise = new Promise((resolve, reject) => {
-    resolveFn = resolve;
-  });
-
-  return { promise, resolveFn };
-}
 
 describe("find", () => {
   let find: Find;
@@ -31,7 +22,7 @@ describe("find", () => {
   });
 
   it("broadcastEncrypted", async () => {
-    const { promise, resolveFn } = createPromise();
+    const { promise, resolve } = createPromise();
     find.on("broadcastEncrypted", (frame: Buffer) => {
       try {
         console.log(`broadcastEncrypted: ${frame.toString("base64")}.`);
@@ -43,7 +34,7 @@ describe("find", () => {
         console.log(`decoded ascii: ${payload.toString("utf8")}`);
         try {
           const data = JSON.parse(payload.toString("ascii"));
-          resolveFn(data);
+          resolve(data);
         } catch (err) {
           //console.log(err);
         }
@@ -57,12 +48,12 @@ describe("find", () => {
   });
 
   it("broadcast", async () => {
-    const { promise, resolveFn } = createPromise();
+    const { promise, resolve } = createPromise();
     find.on("broadcast", (message: unknown) => {
       try {
         console.log("broadcast", message);
         try {
-          resolveFn(message);
+          resolve(message);
         } catch (err) {
           //console.log(err);
         }
@@ -73,21 +64,62 @@ describe("find", () => {
     find.start();
 
     await promise;
-  });
-  
-  it("finds all devices", async () => {
-    const { promise, resolveFn } = createPromise();
-    const found: Record<string, DiscoveryMessage> = {};
-    let toFind = [...devices];
-    find.on("broadcast", (message: DiscoveryMessage) => {
-        found[message.gwId] = message;
-        toFind = toFind.filter((device) => device.id !== message.gwId);
-        console.log(`found ${message.gwId} at ${message.ip}, ${toFind.length} left`);
-        if (toFind.length === 0) {
-            resolveFn(found);
-        }
+  });  
+});
+
+describe("device list", () => {
+  const find = new Find();
+  const { promise: allFound, resolve: resolveFound } = createPromise();
+  const { promise: allQueried, resolve: resloveQueried } = createPromise();
+  const found: Record<string, Device> = {};
+  let toFind = [...devices];
+  let toQuery = [...devices];
+
+  find.on("broadcast", (message: DiscoveryMessage) => {
+    
+    const deviceConfig = devices.find((device) => device.id === message.gwId);
+    if (!deviceConfig) {
+      console.log(`unknown device ${message.gwId}`);
+      return;
+    }
+    console.log(
+      `found ${message.gwId} at ${message.ip}, ${toFind.length} left`
+    );
+    console.log(message);
+
+    const dev = new Device({ ...deviceConfig, ip: message.ip, version: Number.parseFloat(message.version) });
+    
+    found[message.gwId] = dev;
+    
+    dev.connect();
+    dev.on("state-change", (data) => {
+      toQuery = toQuery.filter((device) => device.id !== message.gwId);
+      if (toQuery.length === 0) {
+        resloveQueried(found);
+      }
     });
+    dev.update();
+    
+    toFind = toFind.filter((device) => device.id !== message.gwId);
+    if (toFind.length === 0) {
+      resolveFound(found);
+    }
+  });
+
+  it("finds all devices", async () => {
     find.start();
-    await promise;
+    await allFound;
+  });
+
+  it("queries all devices", async () => {
+    const timeout = new Promise((resolve) => setTimeout(resolve, 9000));
+    const finished = await Promise.race([allQueried, timeout]);
+    if (toQuery.length > 0) {
+      const missingState = toQuery;
+      console.log('missing state for', missingState);
+    }
+
+    console.log(Object.entries(found).map(([id, dev]) => dev.getState() || `no state for ${id}`));
+    expect(toQuery).toBe([]);
   });
 });

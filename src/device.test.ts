@@ -7,7 +7,7 @@ import { COMMANDS } from "./lib/constants";
 const deviceOpts = devices[0];
 
 describe("device", () => {
-  const device = new Device(deviceOpts);
+  const device = new Device({ ...deviceOpts, ip: deviceOpts.ip! });
   const dataReceived = subscribeToEvent<Frame>(device, "rawData");
   const stateChanged = subscribeToEvent<unknown>(device, "state-change");
 

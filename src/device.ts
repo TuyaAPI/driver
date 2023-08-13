@@ -26,12 +26,15 @@ export type DeviceOptions = {
   heartbeatInterval?: number;
 };
 
+type DataPoint =  string | number | boolean | unknown;
+type DataPointSet = Record<string, DataPoint>;
+
 class Device extends EventEmitter implements Device {
   private readonly _messenger: Messenger;
 
   private readonly _socket: Socket;
 
-  private _state: Record<string, string | number | boolean | unknown>;
+  private _state: DataPointSet;
 
   private _lastHeartbeat: Date;
 
@@ -101,11 +104,11 @@ class Device extends EventEmitter implements Device {
     }
   }
 
-  get(): object {
+  getState(): DataPointSet {
     return this._state;
   }
 
-  set(dps: object): void {
+  setState(dps: DataPointSet): void {
     const timestamp = Math.round(new Date().getTime() / 1000);
 
     const frame = new Frame();
