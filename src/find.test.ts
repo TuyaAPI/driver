@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import Find, { DiscoveryMessage } from "./find";
+import { Find, DiscoveryMessage } from "./find";
 import Messenger from "./lib/messenger";
 import { devices } from "./devices.conf";
 import { createPromise } from "./helpers";
@@ -23,7 +23,7 @@ describe("find", () => {
 
   it("broadcastEncrypted", async () => {
     const { promise, resolve } = createPromise();
-    find.on("broadcastEncrypted", (frame: Buffer) => {
+    find.on("rawBroadcastEncrypted", (frame) => {
       try {
         console.log(`broadcastEncrypted: ${frame.toString("base64")}.`);
         const messenger = new Messenger({ key: UDP_HASHED_KEY });
@@ -43,13 +43,13 @@ describe("find", () => {
       }
     });
     find.start();
-
+    
     await promise;
   });
 
   it("broadcast", async () => {
     const { promise, resolve } = createPromise();
-    find.on("broadcast", (message: unknown) => {
+    find.on("broadcast", (message) => {
       try {
         console.log("broadcast", message);
         try {
@@ -120,6 +120,6 @@ describe("device list", () => {
     }
 
     console.log(Object.entries(found).map(([id, dev]) => dev.getState() || `no state for ${id}`));
-    expect(toQuery).toBe([]);
+    expect(toQuery).toEqual([]);
   });
 });

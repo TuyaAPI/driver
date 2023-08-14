@@ -13,13 +13,14 @@ describe("device", () => {
 
   it("can connect", async () => {
     const connected = subscribeToEvent(device, "connected");
-    device.connect();
+    device.connect({ updateOnConnect: false, enableHeartbeat: false });
 
     await connected;
   });
 
   it("receives raw data", async () => {
     let data: Frame;
+    device.update();
     do {
       data = await dataReceived;
       console.log("rawData", data);

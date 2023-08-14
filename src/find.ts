@@ -20,13 +20,16 @@ export type DiscoveryMessage = {
   version: string;
 };
 
-class Find extends EventEmitter {
+
+type FindEvents = 'broadcast'| 'rawBroadcastPlain' | 'rawBroadcastEncrypted' | 'error';
+export class Find {
   private readonly _messenger: Messenger;
   private readonly _listener: dgram.Socket;
   private readonly _listenerEncrypted: dgram.Socket;
-
+  private readonly events = new EventEmitter();
+    
   constructor(version: number = 3.3) {
-    super();
+    
 
     this._messenger = new Messenger({ key: UNIVERSAL_KEY, version });
 
@@ -56,15 +59,33 @@ class Find extends EventEmitter {
     this._listenerEncrypted.removeAllListeners();
   }
 
+  public on(event: 'broadcast', listener: (message: DiscoveryMessage) => void): void;
+  public on(event: 'rawBroadcastPlain', listener: (message: Buffer) => void): void;
+  public on(event: 'rawBroadcastEncrypted', listener: (message: Buffer) => void): void;
+  public on(event: 'error', listener: (error: unknown) => void): void;
+
+  public on(eventName: FindEvents, listener: (...args: any[]) => void) {
+    this.events.on(eventName, listener);
+  }
+
+  emit(event: 'broadcast', message: DiscoveryMessage): boolean;
+  emit(event: 'rawBroadcastEncrypted', message: Buffer): boolean;
+  emit(event: 'rawBroadcastPlain', message: Buffer): boolean;
+  emit(event: 'error', error: unknown): boolean;
+
+  emit(eventName: FindEvents, ...args: any[]): boolean {
+    return this.events.emit(eventName, ...args);
+  }
+
   private _broadcastHandler(message: Buffer): void {
     try {
-      this.emit("broadcastPlain", message);
+      this.emit("rawBroadcastPlain", message);
 
       const frame = this._messenger.decode(message);
       //console.log(frame);
       const body = frame.payload.toString("ascii");
       console.log(body);
-      const payload = JSON.parse(body);
+      const payload = JSON.parse(body) as DiscoveryMessage;
 
       this.emit("broadcast", payload);
     } catch (error) {
@@ -78,7 +99,7 @@ class Find extends EventEmitter {
 
   private _broadcastHandlerEncrypted(message: Buffer): void {
     try {
-      this.emit("broadcastEncrypted", message);
+      this.emit("rawBroadcastEncrypted", message);
 
       const frame = this._messenger.decode(message);
       const body = frame.payload.toString("ascii");
@@ -95,5 +116,3 @@ class Find extends EventEmitter {
     }
   }
 }
-
-export default Find;

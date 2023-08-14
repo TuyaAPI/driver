@@ -205,7 +205,7 @@ class Messenger extends EventEmitter {
   versionPacket(frame: Frame): Buffer {
     let packet = frame.payload;
 
-    if (this._version === 3.3) {
+    if (this._version >= 3.3) {
       // V3.3 is always encrypted
       frame.encrypt(this._key);
       packet = frame.payload;
@@ -214,7 +214,7 @@ class Messenger extends EventEmitter {
       if (frame.command !== COMMANDS.DP_QUERY) {
         // Add 3.3 header
         const buffer = Buffer.alloc(packet.length + 15);
-        Buffer.from("3.3").copy(buffer, 0);
+        Buffer.from(this._version.toFixed(1)).copy(buffer, 0);
         packet.copy(buffer, 15);
 
         packet = buffer;

@@ -1,3 +1,5 @@
+// https://github.com/jasonacox/tinytuya
+
 import { EventEmitter } from "events";
 import { Socket } from "net";
 import debug from "debug";
@@ -26,7 +28,7 @@ export type DeviceOptions = {
   heartbeatInterval?: number;
 };
 
-type DataPoint =  string | number | boolean | unknown;
+type DataPoint = string | number | boolean | unknown;
 type DataPointSet = Record<string, DataPoint>;
 
 class Device extends EventEmitter implements Device {
@@ -39,6 +41,9 @@ class Device extends EventEmitter implements Device {
   private _lastHeartbeat: Date;
 
   private readonly _heartbeatInterval: number;
+
+  private updateOnConnect: boolean = true;
+  private enableHeartbeat: boolean = true;
 
   constructor({
     ip,
@@ -84,12 +89,19 @@ class Device extends EventEmitter implements Device {
     this._socket.on("error", this._handleSocketError.bind(this));
   }
 
-  connect(): void {
+  connect({
+    updateOnConnect,
+    enableHeartbeat,
+  }: {
+    updateOnConnect?: boolean;
+    enableHeartbeat?: boolean;
+  } = {}): void {
     if (this.connected) {
       // Already connected, don't have to do anything
       return;
     }
-
+    this.updateOnConnect = updateOnConnect ?? this.updateOnConnect;
+    this.enableHeartbeat = enableHeartbeat ?? this.enableHeartbeat;
     // Connect to device
     this._log("Connecting...");
     this._socket.connect(this.port, this.ip);
@@ -152,6 +164,7 @@ class Device extends EventEmitter implements Device {
       new Date().getTime() - this._lastHeartbeat.getTime() >
       this._heartbeatInterval * 2
     ) {
+      console.log("Heartbeat timeout - disconnecting");
       // Heartbeat timeout
       // Should we emit error on timeout?
       return this.disconnect();
@@ -175,11 +188,15 @@ class Device extends EventEmitter implements Device {
 
     this._lastHeartbeat = new Date();
 
-    // Fetch default property
-    this.update();
+    if (this.enableHeartbeat) {
+      // Start heartbeat pings
+      this._recursiveHeartbeat();
+    }
 
-    // Start heartbeat pings
-    this._recursiveHeartbeat();
+    if (this.updateOnConnect) {
+      // Fetch default property
+      this.update();
+    }
   }
 
   private _handleSocketClose(): void {
