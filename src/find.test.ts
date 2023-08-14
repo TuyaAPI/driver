@@ -23,15 +23,18 @@ describe("find", () => {
 
   it("broadcastEncrypted", async () => {
     const { promise, resolve } = createPromise();
-    find.on("rawBroadcastEncrypted", (frame) => {
+    find.on("rawBroadcastEncrypted", (message) => {
       try {
-        console.log(`broadcastEncrypted: ${frame.toString("base64")}.`);
+        console.log(`broadcastEncrypted: ${message.toString("base64")}.`);
         const messenger = new Messenger({ key: UDP_HASHED_KEY });
-        const decoded = messenger.decode(frame);
-        const payload = decoded.payload;
-        console.log(`payload`, payload);
-        console.log(`decoded base64: ${payload.toString("base64")}`);
-        console.log(`decoded ascii: ${payload.toString("utf8")}`);
+        const decoded = messenger.decode(message);
+        const { payload, ...meta } = decoded;
+        console.log({
+          frame: message.toString("base64"),
+          meta: JSON.stringify(meta),
+          payload: payload.toString("base64"),
+          data: payload.toString("utf8"),
+        })
         try {
           const data = JSON.parse(payload.toString("ascii"));
           resolve(data);

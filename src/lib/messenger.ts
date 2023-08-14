@@ -1,7 +1,7 @@
 import { EventEmitter } from "events";
-import Frame from "./frame";
+import Frame, { Packet } from "./frame";
 import crc from "./crc";
-import { hmac, md5 } from "./crypto";
+import { decrypt, encrypt, hmac, md5 } from "./crypto";
 import { COMMANDS, HEADER_SIZE } from "./constants";
 
 class Messenger extends EventEmitter {
@@ -23,10 +23,10 @@ class Messenger extends EventEmitter {
     this._version = version;
   }
 
-  encode(frame: Frame): Frame {
-    frame.packet = this.wrapPacket(this.versionPacket(frame), frame.command);
+  encode(frame: Frame): Packet {
+    const buffer = this.wrapPacket(this.versionPacket(frame), frame.command);
 
-    return frame;
+    return { buffer };
   }
 
   splitPackets(p: Buffer): Buffer[] {
@@ -49,29 +49,18 @@ class Messenger extends EventEmitter {
   decode(packet: Buffer): Frame {
     const { command, returnCode, payload, leftover } = this.parsePacket(packet);
 
-    const frame = new Frame();
-
-    frame.version = this._version;
-    frame.packet = packet;
-    frame.command = command;
-    frame.returnCode = returnCode;
-    frame.payload = payload;
-
-    if (payload.length > 0) {
-      const payloadVersion = payload.slice(15).toString("ascii");
-      // Check if packet is encrypted
-      if (
-        this._version >= 3.3 ||
-        payload.indexOf(this._version.toString()) === 0
-      ) {
-        frame.encrypted = true;
-        frame.decrypt(this._key);
-      } else {
-        frame.payload = payload;
-      }
-    }
-
+    
+    const shouldDecrypt = payload.length && (this._version >= 3.3 || payload.indexOf(this._version.toString()) === 0);
+    const decrypted = shouldDecrypt ? decrypt(this._key, payload) : payload;
+    
     // TODO: leftover can contain another packet, so we should parse it
+    const frame: Frame = {
+      version: this._version,
+      command,
+      payload: decrypted,
+      returnCode,
+    };
+    
     return frame;
   }
 
@@ -203,35 +192,37 @@ class Messenger extends EventEmitter {
   }
 
   versionPacket(frame: Frame): Buffer {
-    let packet = frame.payload;
-
     if (this._version >= 3.3) {
       // V3.3 is always encrypted
-      frame.encrypt(this._key);
-      packet = frame.payload;
+      const packet = encrypt(this._key, frame.payload);
 
-      // Check if we need an extended header, only for certain Commands
-      if (frame.command !== COMMANDS.DP_QUERY) {
-        // Add 3.3 header
+      if (frame.command === COMMANDS.DP_QUERY) {
+        return packet;
+      } else {
+        // Add 3.3 header (only for certain commands)
         const buffer = Buffer.alloc(packet.length + 15);
         Buffer.from(this._version.toFixed(1)).copy(buffer, 0);
         packet.copy(buffer, 15);
 
-        packet = buffer;
+        return buffer;
       }
-    } else if (frame.encrypted) {
-      const hash = md5(
-        `data=${frame.payload.toString("base64")}||lpv=${this._version}||${
-          this._key
-        }`
-      ).slice(8, 24);
-
-      packet = Buffer.from(
-        `${this._version.toString()}${hash}${packet.toString("base64")}`
-      );
+    } else {
+      throw new Error(`Version ${this._version} not supported`);
     }
+    //    else if (frame.encrypted) {
+    //     const hash = md5(
+    //       `data=${frame.payload.toString("base64")}||lpv=${this._version}||${
+    //         this._key
+    //       }`
+    //     ).slice(8, 24);
 
-    return packet;
+    //     packet = Buffer.from(
+    //       `${this._version.toString()}${hash}${packet.toString("base64")}`
+    //     );
+    //   }
+
+    //   return packet;
+    // }
   }
 }
 

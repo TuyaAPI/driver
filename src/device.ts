@@ -4,9 +4,10 @@ import { EventEmitter } from "events";
 import { Socket } from "net";
 import debug from "debug";
 import Messenger from "./lib/messenger";
-import Frame from "./lib/frame";
+import Frame, { Packet } from "./lib/frame";
 import { COMMANDS, SUPPORTED_PROTOCOLS } from "./lib/constants";
 import { DeviceError } from "./lib/helpers";
+import { encrypt } from "./lib/crypto";
 
 interface Device {
   readonly ip: string;
@@ -131,40 +132,41 @@ class Device {
   setState(dps: DataPointSet): void {
     const timestamp = Math.round(new Date().getTime() / 1000);
 
-    const frame = new Frame();
-
-    frame.command = COMMANDS.CONTROL;
-    frame.setPayload({
-      gwId: this.gwId,
-      devId: this.id,
-      uid: "",
-      t: timestamp,
-      dps,
-    });
-
-    frame.encrypt(this.key);
+    const frame: Frame = {
+      version: this.version,
+      command: COMMANDS.CONTROL,
+      payload: Buffer.from(
+        JSON.stringify({
+          gwId: this.gwId,
+          devId: this.id,
+          uid: "",
+          t: timestamp,
+          dps,
+        })
+      ),
+    };
 
     this.send(this._messenger.encode(frame));
   }
 
   update(): void {
-    const frame = new Frame();
-
-    frame.command = COMMANDS.DP_QUERY;
-    frame.setPayload({
-      gwId: this.gwId,
-      devId: this.id,
-    });
+    const frame = {
+      version: this.version,
+      command: COMMANDS.DP_QUERY,
+      payload: Buffer.from(JSON.stringify({
+        gwId: this.gwId,
+        devId: this.id,
+      }))
+    };
 
     const request = this._messenger.encode(frame);
-
     this.send(request);
   }
 
-  send(frame: Frame): void {
-    this._log("Sending:", frame.packet.toString("hex"));
+  send(packet: Packet): void {
+    this._log("Sending:", packet.buffer.toString("hex"));
 
-    this._socket.write(frame.packet);
+    this._socket.write(packet.buffer);
   }
 
   private _recursiveHeartbeat(): void {
@@ -178,9 +180,11 @@ class Device {
       return this.disconnect();
     }
 
-    const frame = new Frame();
-
-    frame.command = COMMANDS.HEART_BEAT;
+    const frame: Frame = {
+      version: this.version,
+      command: COMMANDS.HEART_BEAT,
+      payload: Buffer.alloc(0),
+    };
 
     this.send(this._messenger.encode(frame));
 
@@ -289,7 +293,6 @@ class Device {
   on(event: DeviceEvents, listener: (message: any) => void) {
     this.events.on(event, listener);
   }
-  
 }
 
 export default Device;
