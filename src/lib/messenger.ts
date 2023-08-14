@@ -24,21 +24,21 @@ class Messenger extends EventEmitter {
   }
 
   encode(frame: Frame): Packet {
-    const buffer = this.wrapPacket(this.versionPacket(frame), frame.command);
+    const packet = this.wrapPacket(this.encryptPayload(frame), frame.command);
 
-    return { buffer };
+    return packet;
   }
 
-  splitPackets(p: Buffer): Buffer[] {
-    const packets: Buffer[] = [];
+  splitPackets(p: Buffer): Packet[] {
+    const packets: Packet[] = [];
 
     const empty = Buffer.from("");
 
     while (!p.equals(empty)) {
       const startIndex = p.indexOf(Buffer.from("000055aa", "hex"));
-      const endIndex = p.indexOf(Buffer.from("0000aa55", "hex")) + 4;
+      const endIndex = p.indexOf(Buffer.from("0000aa55", "hex")) + 4; // TODO: why 4 not 8?
 
-      packets.push(p.slice(startIndex, endIndex));
+      packets.push({ buffer: p.slice(startIndex, endIndex) });
 
       p = p.slice(endIndex, p.length);
     }
@@ -46,8 +46,9 @@ class Messenger extends EventEmitter {
     return packets;
   }
 
-  decode(packet: Buffer): Frame {
-    const { command, returnCode, payload, leftover } = this.parsePacket(packet);
+  decode(message: Buffer): Frame {
+    const packet = this.checkPacket(message);
+    const { command, returnCode, payload } = this.parsePacket(packet);
 
     
     const shouldDecrypt = payload.length && (this._version >= 3.3 || payload.indexOf(this._version.toString()) === 0);
@@ -64,9 +65,9 @@ class Messenger extends EventEmitter {
     return frame;
   }
 
-  private parsePacket(buffer: Buffer) {
-    const { packet, leftover } = this.checkPacket(buffer);
-
+  private parsePacket(p: Packet) {
+    const { buffer: packet } = p;
+    
     const sequenceN = packet.readUInt32BE(4);
     const command = packet.readUInt32BE(8);
     const payloadSize = packet.readUInt32BE(12);
@@ -97,7 +98,7 @@ class Messenger extends EventEmitter {
 
     // Check CRC
     this.checkCrc(packet, payloadSize, packageFromDiscovery);
-    return { payload, leftover, command, sequenceN, returnCode };
+    return { payload, command, sequenceN, returnCode };
   }
 
   private checkCrc(
@@ -135,7 +136,7 @@ class Messenger extends EventEmitter {
     }
   }
 
-  checkPacket(packet: Buffer) {
+  checkPacket(packet: Buffer): Packet {
     // Check for length
     // At minimum requires: prefix (4), sequence (4), command (4), length (4),
     // CRC (4), and suffix (4) for 24 total bytes
@@ -154,9 +155,8 @@ class Messenger extends EventEmitter {
     // Check for suffix
     const suffixLocation = packet.indexOf("0000AA55", 0, "hex");
 
-    let leftover: Buffer | undefined = undefined;
     if (suffixLocation !== packet.length - 4) {
-      leftover = packet.slice(suffixLocation + 4);
+      //const leftover = packet.slice(suffixLocation + 4);
       packet = packet.slice(0, suffixLocation + 4);
     }
     const suffix = packet.readUInt32BE(packet.length - 4);
@@ -165,44 +165,46 @@ class Messenger extends EventEmitter {
       throw new TypeError(`Suffix does not match: ${packet.toString("hex")}`);
     }
 
-    return { leftover, packet };
+    return { buffer: packet };
   }
 
-  wrapPacket(packet: Buffer, command: COMMANDS): Buffer {
+  wrapPacket(packet: Buffer, command: COMMANDS): Packet {
     const len = packet.length;
 
-    const buffer = Buffer.alloc(len + 24);
+    const prefixLength = 16;
+    const suffixLength = 8;
+    const buffer = Buffer.alloc(prefixLength + len + suffixLength);
 
     // Add prefix, command, and length
-    buffer.writeUInt32BE(0x000055aa, 0);
+    const startMarker = 0x000055aa;
+    buffer.writeUInt32BE(startMarker, 0);
     buffer.writeUInt32BE(command, 8);
     buffer.writeUInt32BE(len + 8, 12);
 
     // Add payload, crc, and suffix
     packet.copy(buffer, 16);
 
-    const code = crc(buffer.slice(0, len + 16));
+    const checksum = crc(buffer.slice(0, len + 16));
 
-    buffer.writeInt32BE(code, len + 16);
-    buffer.writeUInt32BE(0x0000aa55, len + 20);
+    buffer.writeInt32BE(checksum, len + 16);
+    const endMarker = 0x0000aa55;
+    buffer.writeUInt32BE(endMarker, len + 20);
 
-    packet = buffer;
-
-    return packet;
+    return { buffer };
   }
 
-  versionPacket(frame: Frame): Buffer {
+  encryptPayload(frame: Frame): Buffer {
     if (this._version >= 3.3) {
       // V3.3 is always encrypted
-      const packet = encrypt(this._key, frame.payload);
+      const encrypted = encrypt(this._key, frame.payload);
 
       if (frame.command === COMMANDS.DP_QUERY) {
-        return packet;
+        return encrypted;
       } else {
         // Add 3.3 header (only for certain commands)
-        const buffer = Buffer.alloc(packet.length + 15);
+        const buffer = Buffer.alloc(encrypted.length + 15);
         Buffer.from(this._version.toFixed(1)).copy(buffer, 0);
-        packet.copy(buffer, 15);
+        encrypted.copy(buffer, 15);
 
         return buffer;
       }

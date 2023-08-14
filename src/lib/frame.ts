@@ -1,5 +1,4 @@
 import { COMMANDS } from "./constants";
-import { encrypt, decrypt } from "./crypto";
 
 export type Packet = {
  buffer: Buffer;

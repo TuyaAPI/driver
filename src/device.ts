@@ -225,7 +225,7 @@ class Device {
     const packets = this._messenger.splitPackets(data);
     packets.forEach((packet) => {
       try {
-        const frame = this._messenger.decode(packet);
+        const frame = this._messenger.decode(packet.buffer);
 
         // Emit Frame as data event
         this.emit("rawData", frame);
