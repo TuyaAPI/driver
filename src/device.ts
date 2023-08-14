@@ -28,10 +28,18 @@ export type DeviceOptions = {
   heartbeatInterval?: number;
 };
 
-type DataPoint = string | number | boolean | unknown;
-type DataPointSet = Record<string, DataPoint>;
+export type DataPoint = string | number | boolean | unknown;
+export type DataPointSet = Record<string, DataPoint>;
 
-class Device extends EventEmitter implements Device {
+export type DeviceEvents =
+  | "connected"
+  | "disconnected"
+  | "error"
+  | "rawData"
+  | "data"
+  | "state-change";
+
+class Device {
   private readonly _messenger: Messenger;
 
   private readonly _socket: Socket;
@@ -45,6 +53,8 @@ class Device extends EventEmitter implements Device {
   private updateOnConnect: boolean = true;
   private enableHeartbeat: boolean = true;
 
+  private events = new EventEmitter();
+
   constructor({
     ip,
     id,
@@ -54,8 +64,6 @@ class Device extends EventEmitter implements Device {
     port = 6668,
     heartbeatInterval = 1000,
   }: DeviceOptions) {
-    super();
-
     // Check protocol version
     if (!SUPPORTED_PROTOCOLS.includes(version)) {
       throw new Error(`Protocol version ${version} is unsupported.`);
@@ -261,6 +269,27 @@ class Device extends EventEmitter implements Device {
 
     d(`${this.ip}:`, ...message);
   }
+
+  emit(event: "connected" | "disconnected"): boolean;
+  emit(event: "error", error: unknown): boolean;
+  emit(event: "rawData", frame: Frame): boolean;
+  emit(event: "data", message: object): boolean;
+  emit(event: "state-change", state: DataPointSet): boolean;
+
+  emit(eventName: DeviceEvents, ...args: any[]): boolean {
+    return this.events.emit(eventName, ...args);
+  }
+
+  on(event: "connected" | "disconnected", handler: () => void): void;
+  on(event: "error", handler: (error: unknown) => void): void;
+  on(event: "rawData", handler: (frame: Frame) => void): void;
+  on(event: "data", handler: (message: object) => void): void;
+  on(event: "state-change", handler: (state: DataPointSet) => void): void;
+
+  on(event: DeviceEvents, listener: (message: any) => void) {
+    this.events.on(event, listener);
+  }
+  
 }
 
 export default Device;

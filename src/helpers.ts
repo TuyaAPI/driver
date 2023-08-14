@@ -1,4 +1,4 @@
-import Device from "./device";
+import Device, { DeviceEvents } from "./device";
 
 export function createPromise<T>() {
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -13,9 +13,9 @@ export function createPromise<T>() {
   return { promise, resolve, reject };
 }
 
-export function subscribeToEvent<T>(device: Device, event: string) {
+export function subscribeToEvent<T>(device: Device, event: DeviceEvents) {
   const { promise, resolve, reject } = createPromise<T>();
-  device.on(event, (data) => {
+  device.on(event as any, (data: unknown) => {
     resolve(data as T);
   });
   device.on("error", (err) => {
