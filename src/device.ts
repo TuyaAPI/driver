@@ -36,6 +36,7 @@ export type DeviceEvents =
   | "connected"
   | "disconnected"
   | "error"
+  | "packet"
   | "rawData"
   | "data"
   | "state-change";
@@ -225,6 +226,7 @@ class Device {
     const packets = this._messenger.splitPackets(data);
     packets.forEach((packet) => {
       try {
+        this.emit("packet", packet);
         const frame = this._messenger.decode(packet.buffer);
 
         // Emit Frame as data event
@@ -279,6 +281,7 @@ class Device {
   emit(event: "rawData", frame: Frame): boolean;
   emit(event: "data", message: object): boolean;
   emit(event: "state-change", state: DataPointSet): boolean;
+  emit(event: "packet", packet: Packet): boolean;
 
   emit(eventName: DeviceEvents, ...args: any[]): boolean {
     return this.events.emit(eventName, ...args);
@@ -289,6 +292,7 @@ class Device {
   on(event: "rawData", handler: (frame: Frame) => void): void;
   on(event: "data", handler: (message: object) => void): void;
   on(event: "state-change", handler: (state: DataPointSet) => void): void;
+  on(event: "packet", handler: (packet: Packet) => void): void;
 
   on(event: DeviceEvents, listener: (message: any) => void) {
     this.events.on(event, listener);

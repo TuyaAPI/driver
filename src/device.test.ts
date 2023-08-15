@@ -1,5 +1,5 @@
 import Device from "./device";
-import Frame from "./lib/frame";
+import Frame, { Packet } from "./lib/frame";
 import { subscribeToEvent } from "./helpers";
 import { devices } from "./devices.conf";
 import { COMMANDS } from "./lib/constants";
@@ -8,6 +8,7 @@ const deviceOpts = devices[0];
 
 describe("device", () => {
   const device = new Device({ ...deviceOpts, ip: deviceOpts.ip! });
+  const packetRecevied = subscribeToEvent<Packet>(device, "packet");
   const dataReceived = subscribeToEvent<Frame>(device, "rawData");
   const stateChanged = subscribeToEvent<unknown>(device, "state-change");
 
@@ -22,8 +23,16 @@ describe("device", () => {
     let data: Frame;
     device.update();
     do {
+      const packet = await packetRecevied;
       data = await dataReceived;
-      console.log("rawData", data);
+      const { payload, ...meta } = data;
+      console.log({
+        frame: packet.buffer.toString("base64"),
+        meta: JSON.stringify(meta),
+        payload: payload.toString("base64"),
+        data: payload.toString("utf8"),
+      })
+
     } while (data.command !== COMMANDS.DP_QUERY);
 
     const json = JSON.parse(data.payload.toString("ascii"));
