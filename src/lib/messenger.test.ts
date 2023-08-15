@@ -72,10 +72,62 @@ describe("protocol 3.3", () => {
       payload: Buffer.from(JSON.stringify({}), "utf8"),
       version: 3.3,
     };
-    
+
     const encoded = messenger.encode(frame);
     const decoded = messenger.decode(encoded.buffer);
 
     expect(decoded).toMatchObject(frame);
+  });
+
+  it("can encode 3.3", () => {
+    const payload = { devId: "002004265ccf7fb1b659", dps: { 1: true, 2: 0 } };
+
+    const messenger = new Messenger({ key: "bbe88b3f4106d354" });
+
+    const encoded = messenger.encode({
+      command: COMMANDS.DP_QUERY,
+      version: 3.3,
+      payload: Buffer.from(JSON.stringify(payload), "utf8"),
+    });
+
+    expect(encoded.buffer.toString("base64")).toEqual(
+      "AABVqgAAAAAAAAAKAAAASM6wPDit69yTIlF6Vw1mrjaaWOAJtnPK2erG+GH9eTIzyLy7WILHEXvMIKna/snRTnRLFLfvV1r7z5Z2CkLoDcHv/pbSAACqVQ=="
+    );
+    // encoded3.4 AABVqgAAAAAAAAAKAAAAZM6wPDit69yTIlF6Vw1mrjaaWOAJtnPK2erG+GH9eTIzyLy7WILHEXvMIKna/snRTnRLFLfvV1r7z5Z2CkLoDcFOimZpyKDTXr3LCUCvrohlOJtaQLNCDG3MmZjvy8F/ugAAqlU=
+    // encoded3.3
+  });
+});
+
+describe("protocol 3.4", () => {
+  it("can encode 3.4", () => {
+    const payload = { devId: "002004265ccf7fb1b659", dps: { 1: true, 2: 0 } };
+
+    const messenger = new Messenger({ key: "bbe88b3f4106d354" });
+
+    const encoded = messenger.encode({
+      command: COMMANDS.DP_QUERY,
+      version: 3.4,
+      payload: Buffer.from(JSON.stringify(payload), "utf8"),
+    });
+
+    expect(encoded.buffer.toString("base64")).toEqual(
+      "AABVqgAAAAAAAAAKAAAAZM6wPDit69yTIlF6Vw1mrjaaWOAJtnPK2erG+GH9eTIzyLy7WILHEXvMIKna/snRTnRLFLfvV1r7z5Z2CkLoDcFOimZpyKDTXr3LCUCvrohlOJtaQLNCDG3MmZjvy8F/ugAAqlU="
+    );
+  });
+  it("can encode 3.4", () => {
+    const payload = { devId: "002004265ccf7fb1b659", dps: { 1: true, 2: 0 } };
+
+    const messenger = new Messenger({ key: "bbe88b3f4106d354" });
+
+    const encoded = messenger.encode({
+      command: COMMANDS.DP_QUERY,
+      version: 3.4,
+      payload: Buffer.from(JSON.stringify(payload), "utf8"),
+      sequenceN: 2,
+    });
+
+    expect(encoded.buffer.toString("base64")).toEqual(
+      "AABVqgAAAAIAAAAKAAAAZM6wPDit69yTIlF6Vw1mrjaaWOAJtnPK2erG+GH9eTIzyLy7WILHEXvMIKna/snRTnRLFLfvV1r7z5Z2CkLoDcGDOrbIwhkRDi/6WrOc7gg/JaSL0q80uhalRAGzLgkr5QAAqlU="
+    );
   });
 });

@@ -1,7 +1,14 @@
 import { EventEmitter } from "events";
 import Frame, { Packet } from "./frame";
 import crc from "./crc";
-import { decrypt, encrypt, hmac, md5 } from "./crypto";
+import {
+  decrypt,
+  encrypt,
+  encryptPost34,
+  encryptPre34,
+  hmac,
+  md5,
+} from "./crypto";
 import { COMMANDS, HEADER_SIZE } from "./constants";
 
 class Messenger extends EventEmitter {
@@ -24,9 +31,20 @@ class Messenger extends EventEmitter {
   }
 
   encode(frame: Frame): Packet {
-    const packet = this.wrapPacket(this.encryptPayload(frame), frame.command);
-
-    return packet;
+    if (frame.version < 3.4) {
+      const packet = this.wrapPacketPre34(
+        this.encryptPayload(frame),
+        frame.command
+      );
+      return packet;
+    } else {
+      const packet = this.wrapPacketPost34(
+        this.encryptPayload(frame),
+        frame.command,
+        frame.sequenceN
+      );
+      return packet;
+    }
   }
 
   splitPackets(p: Buffer): Packet[] {
@@ -50,10 +68,11 @@ class Messenger extends EventEmitter {
     const packet = this.checkPacket(message);
     const { command, returnCode, payload } = this.parsePacket(packet);
 
-    
-    const shouldDecrypt = payload.length && (this._version >= 3.3 || payload.indexOf(this._version.toString()) === 0);
+    const shouldDecrypt =
+      payload.length &&
+      (this._version >= 3.3 || payload.indexOf(this._version.toString()) === 0);
     const decrypted = shouldDecrypt ? decrypt(this._key, payload) : payload;
-    
+
     // TODO: leftover can contain another packet, so we should parse it
     const frame: Frame = {
       version: this._version,
@@ -61,13 +80,13 @@ class Messenger extends EventEmitter {
       payload: decrypted,
       returnCode,
     };
-    
+
     return frame;
   }
 
   private parsePacket(p: Packet) {
     const { buffer: packet } = p;
-    
+
     const sequenceN = packet.readUInt32BE(4);
     const command = packet.readUInt32BE(8);
     const payloadSize = packet.readUInt32BE(12);
@@ -168,8 +187,49 @@ class Messenger extends EventEmitter {
     return { buffer: packet };
   }
 
-  wrapPacket(packet: Buffer, command: COMMANDS): Packet {
-    const len = packet.length;
+  wrapPacketPost34(payload: Buffer, command: COMMANDS, sequenceN?: number): Packet {
+    if (
+      command !== COMMANDS.DP_QUERY &&
+      command !== COMMANDS.HEART_BEAT &&
+      command !== COMMANDS.DP_QUERY_NEW &&
+      command !== COMMANDS.SESS_KEY_NEG_START &&
+      command !== COMMANDS.SESS_KEY_NEG_FINISH &&
+      command !== COMMANDS.DP_REFRESH
+    ) {
+      // Add 3.4 header
+      // check this: mqc_very_pcmcd_mcd(int a1, unsigned int a2)
+      const buffer = Buffer.alloc(payload.length + 15);
+      Buffer.from("3.4").copy(buffer, 0);
+      payload.copy(buffer, 15);
+      payload = buffer;
+    }
+
+    // Allocate buffer with room for payload + 24 bytes for
+    // prefix, sequence, command, length, crc, and suffix
+    const buffer = Buffer.alloc(payload.length + 52);
+
+    // Add prefix, command, and length
+    buffer.writeUInt32BE(0x000055aa, 0);
+    buffer.writeUInt32BE(command, 8);
+    buffer.writeUInt32BE(payload.length + 0x24, 12);
+
+    if (sequenceN) {
+      buffer.writeUInt32BE(sequenceN, 4);
+    }
+
+    // Add payload, crc, and suffix
+    payload.copy(buffer, 16);
+
+    const calculatedCrc = hmac(this._key, buffer.slice(0, payload.length + 16));
+    calculatedCrc.copy(buffer, payload.length + 16);
+
+    buffer.writeUInt32BE(0x0000aa55, payload.length + 48);
+
+    return { buffer };
+  }
+
+  wrapPacketPre34(payload: Buffer, command: COMMANDS): Packet {
+    const len = payload.length;
 
     const prefixLength = 16;
     const suffixLength = 8;
@@ -182,7 +242,7 @@ class Messenger extends EventEmitter {
     buffer.writeUInt32BE(len + 8, 12);
 
     // Add payload, crc, and suffix
-    packet.copy(buffer, 16);
+    payload.copy(buffer, 16);
 
     const checksum = crc(buffer.slice(0, len + 16));
 
@@ -194,22 +254,10 @@ class Messenger extends EventEmitter {
   }
 
   encryptPayload(frame: Frame): Buffer {
-    if (this._version >= 3.3) {
-      // V3.3 is always encrypted
-      const encrypted = encrypt(this._key, frame.payload);
-
-      if (frame.command === COMMANDS.DP_QUERY) {
-        return encrypted;
-      } else {
-        // Add 3.3 header (only for certain commands)
-        const buffer = Buffer.alloc(encrypted.length + 15);
-        Buffer.from(this._version.toFixed(1)).copy(buffer, 0);
-        encrypted.copy(buffer, 15);
-
-        return buffer;
-      }
+    if (this._version >= 3.3 && this._version < 3.4) {
+      return this.encryptPre34(frame);
     } else {
-      throw new Error(`Version ${this._version} not supported`);
+      return this.encryptPost34(frame);
     }
     //    else if (frame.encrypted) {
     //     const hash = md5(
@@ -225,6 +273,36 @@ class Messenger extends EventEmitter {
 
     //   return packet;
     // }
+  }
+  encryptPost34(frame: Frame): Buffer {
+    let payload = frame.payload;
+    //if (payload.length > 0) {
+      // is null messages need padding - PING work without
+      const padding = 0x10 - (payload.length & 0xf);
+      const buf34 = Buffer.alloc(payload.length + padding, padding);
+      payload.copy(buf34);
+      payload = buf34;
+    //}
+    const encrypted = encrypt(this._key, payload, this._version);
+    //payload = Buffer.from(payload);
+
+    return encrypted;
+  }
+
+  encryptPre34(frame: Frame): Buffer {
+    // V3.3 is always encrypted
+    const encrypted = encrypt(this._key, frame.payload, this._version);
+
+    if (frame.command === COMMANDS.DP_QUERY) {
+      return encrypted;
+    } else {
+      // Add 3.3 header (only for certain commands)
+      const buffer = Buffer.alloc(encrypted.length + 15);
+      Buffer.from(this._version.toFixed(1)).copy(buffer, 0);
+      encrypted.copy(buffer, 15);
+
+      return buffer;
+    }
   }
 }
 

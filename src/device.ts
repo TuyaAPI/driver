@@ -7,7 +7,7 @@ import Messenger from "./lib/messenger";
 import Frame, { Packet } from "./lib/frame";
 import { COMMANDS, SUPPORTED_PROTOCOLS } from "./lib/constants";
 import { DeviceError } from "./lib/helpers";
-import { encrypt } from "./lib/crypto";
+import { encryptPre34 } from "./lib/crypto";
 
 interface Device {
   readonly ip: string;

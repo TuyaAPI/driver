@@ -1,6 +1,6 @@
 const SUPPORTED_PROTOCOLS = [3.1, 3.3, 3.4, 3.5];
 
-const UDP_KEY = 'yGAdlopoPVldABfn';
+const UDP_KEY = "yGAdlopoPVldABfn";
 
 const HEADER_SIZE = 16;
 
@@ -8,9 +8,13 @@ enum COMMANDS {
   UDP = 0,
   AP_CONFIG = 1,
   ACTIVE = 2,
-  BIND = 3,
-  RENAME_GW = 4,
-  RENAME_DEVICE = 5,
+  SESS_KEY_NEG_START = 3, // Negotiate session key
+  //RENAME_GW = 4, // ?? Leave in for backward compatibility
+  SESS_KEY_NEG_RES = 4, // Negotiate session key response
+  //  RENAME_DEVICE: 5, // ?? Leave in for backward compatibility
+  SESS_KEY_NEG_FINISH = 5, // Finalize session key negotiation
+  // RENAME_GW = 4,
+  // RENAME_DEVICE = 5,
   UNBIND = 6,
   CONTROL = 7,
   STATUS = 8,
@@ -22,6 +26,7 @@ enum COMMANDS {
   ENABLE_WIFI = 14,
   DP_QUERY_NEW = 16,
   SCENE_EXECUTE = 17,
+  DP_REFRESH = 18,
   UDP_NEW = 19,
   AP_CONFIG_NEW = 20,
   BROADCAST_LPV34 = 35,
@@ -37,7 +42,7 @@ enum COMMANDS {
   LAN_REMOVE_GW = 249,
   LAN_CHECK_GW_UPDATE = 250,
   LAN_GW_UPDATE = 251,
-  LAN_SET_GW_CHANNEL = 252
+  LAN_SET_GW_CHANNEL = 252,
 }
 
-export {UDP_KEY, HEADER_SIZE, COMMANDS, SUPPORTED_PROTOCOLS};
+export { UDP_KEY, HEADER_SIZE, COMMANDS, SUPPORTED_PROTOCOLS };

@@ -12,6 +12,7 @@ interface Frame {
   //readonly packet: Buffer;
   //readonly encrypted: boolean;
   readonly returnCode?: number;
+  readonly sequenceN?: number;
 
   // setPayload(data: Buffer | object): Frame {
   //   if (data instanceof Buffer) {

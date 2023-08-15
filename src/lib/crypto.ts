@@ -27,10 +27,28 @@ export function hmac(key: string | Buffer, data: Buffer) {
     .digest(); // .digest('hex');
 }
 
-export function encrypt(key: string | Buffer, data: Buffer): Buffer {
+export function encrypt(key: string | Buffer, data: Buffer, version: number): Buffer {
+  return version < 3.4 ? encryptPre34(key, data) : encryptPost34(key, data);
+}
+
+function encryptPre34(key: string | Buffer, data: Buffer): Buffer {
   const cipher = createCipheriv("aes-128-ecb", key, "");
 
   return Buffer.concat([cipher.update(data), cipher.final()]);
+}
+
+function encryptPost34(key: string | Buffer, data: Buffer): Buffer {
+  const cipher = createCipheriv("aes-128-ecb", key, null);
+  cipher.setAutoPadding(false);
+  const encrypted = cipher.update(data);
+  cipher.final();
+
+  // Default base64 enable TODO: check if this is needed?
+  // if (options.base64 === false) {
+  //   return Buffer.from(encrypted, 'base64');
+  // }
+
+  return encrypted;
 }
 
 export function decrypt(key: string | Buffer, data: Buffer): Buffer {
