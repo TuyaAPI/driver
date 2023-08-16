@@ -7,7 +7,7 @@ import Messenger from "./lib/messenger";
 import Frame, { Packet } from "./lib/frame";
 import { COMMANDS, SUPPORTED_PROTOCOLS } from "./lib/constants";
 import { DeviceError } from "./lib/helpers";
-import { encryptPre34 } from "./lib/crypto";
+import * as crypto from "crypto";
 
 interface Device {
   readonly ip: string;
@@ -56,6 +56,7 @@ class Device {
   private enableHeartbeat: boolean = true;
 
   private events = new EventEmitter();
+  private _tmpLocalKey: Buffer;
 
   constructor({
     ip,
@@ -151,13 +152,19 @@ class Device {
   }
 
   update(): void {
+    const payload = {
+      gwId: this.gwId,
+      devId: this.id,
+      t: Math.round(new Date().getTime() / 1000).toString(),
+      dps: {},
+      uid: this.id,
+    };
+    const command =
+      this.version >= 3.4 ? COMMANDS.DP_QUERY_NEW : COMMANDS.DP_QUERY;
     const frame = {
       version: this.version,
-      command: COMMANDS.DP_QUERY,
-      payload: Buffer.from(JSON.stringify({
-        gwId: this.gwId,
-        devId: this.id,
-      }))
+      command,
+      payload: Buffer.from(JSON.stringify(payload)),
     };
 
     const request = this._messenger.encode(frame);
@@ -196,6 +203,27 @@ class Device {
     this.connected = true;
 
     this._log("Connected.");
+
+    if (this.version >= 3.4) {
+      // Negotiate session key then emit 'connected'
+      // 16 bytes random + 32 bytes hmac
+      try {
+        this._tmpLocalKey = crypto.randomBytes(16);
+        const packet = this._messenger.encode({
+          payload: this._tmpLocalKey,
+          command: COMMANDS.SESS_KEY_NEG_START,
+          version: this.version,
+          //sequenceN: ++this._currentSequenceN,
+        });
+
+        debug("Protocol 3.4: Negotiate Session Key - Send Msg 0x03");
+        this.send(packet);
+      } catch (error) {
+        debug("Error binding key for protocol 3.4: " + error);
+      }
+
+      return;
+    }
 
     this.emit("connected");
 

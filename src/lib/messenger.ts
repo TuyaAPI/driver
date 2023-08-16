@@ -210,12 +210,12 @@ class Messenger extends EventEmitter {
 
     // Add prefix, command, and length
     buffer.writeUInt32BE(0x000055aa, 0);
-    buffer.writeUInt32BE(command, 8);
-    buffer.writeUInt32BE(payload.length + 0x24, 12);
-
     if (sequenceN) {
       buffer.writeUInt32BE(sequenceN, 4);
     }
+    buffer.writeUInt32BE(command, 8);
+    buffer.writeUInt32BE(payload.length + 0x24, 12);
+
 
     // Add payload, crc, and suffix
     payload.copy(buffer, 16);
@@ -254,7 +254,10 @@ class Messenger extends EventEmitter {
   }
 
   encryptPayload(frame: Frame): Buffer {
-    if (this._version >= 3.3 && this._version < 3.4) {
+    if (this._version < 3.3) {
+      throw new Error("Encryption not supported for version < 3.3");
+    }
+    if (this._version < 3.4) {
       return this.encryptPre34(frame);
     } else {
       return this.encryptPost34(frame);

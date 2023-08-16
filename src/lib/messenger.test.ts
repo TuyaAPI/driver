@@ -93,8 +93,6 @@ describe("protocol 3.3", () => {
     expect(encoded.buffer.toString("base64")).toEqual(
       "AABVqgAAAAAAAAAKAAAASM6wPDit69yTIlF6Vw1mrjaaWOAJtnPK2erG+GH9eTIzyLy7WILHEXvMIKna/snRTnRLFLfvV1r7z5Z2CkLoDcHv/pbSAACqVQ=="
     );
-    // encoded3.4 AABVqgAAAAAAAAAKAAAAZM6wPDit69yTIlF6Vw1mrjaaWOAJtnPK2erG+GH9eTIzyLy7WILHEXvMIKna/snRTnRLFLfvV1r7z5Z2CkLoDcFOimZpyKDTXr3LCUCvrohlOJtaQLNCDG3MmZjvy8F/ugAAqlU=
-    // encoded3.3
   });
 });
 
@@ -129,5 +127,32 @@ describe("protocol 3.4", () => {
     expect(encoded.buffer.toString("base64")).toEqual(
       "AABVqgAAAAIAAAAKAAAAZM6wPDit69yTIlF6Vw1mrjaaWOAJtnPK2erG+GH9eTIzyLy7WILHEXvMIKna/snRTnRLFLfvV1r7z5Z2CkLoDcGDOrbIwhkRDi/6WrOc7gg/JaSL0q80uhalRAGzLgkr5QAAqlU="
     );
+  });
+  it.only("can encode DPS query", () => {
+    const input = {
+      packet: {
+        commandByte: 16,
+        sequenceN: 5,
+        payload: {
+          gwId: "bfbee61e344c952b34gfia",
+          devId: "bfbee61e344c952b34gfia",
+          t: "1692160865",
+          dps: {},
+          uid: "bfbee61e344c952b34gfia",
+        },
+      },
+      encoded:
+        "000055aa0000000500000010000000a4b446b001db45a1b45c4f4d6e3034a092f53e8cff4f76282fd80e540346ce8574050f29c7d353c482ab758bd3095b09450668c9337d0dcc487147930d48ef2a7b2a1bb060da056c314ff6083e64c0e11f12f1c0e5644c25defa99d25cb7d643ef4aba6a596ba2aab3559cb582a4a5a27a53681f2a2af665515d0ea04ec3aab0f59664199d83f9b462d9038b58334087ea0c2e15c15a1bbc7133a845e9a85763a70000aa55",
+    };
+
+    const messenger = new Messenger({ key: ":P(t^(fU-i>PgrY-" });
+    const encoded = messenger.encode({
+      command: input.packet.commandByte,
+      version: 3.4,
+      payload: Buffer.from(JSON.stringify(input.packet.payload), "utf8"),
+      sequenceN: input.packet.sequenceN,
+    });
+
+    expect(encoded.buffer.toString("hex")).toEqual(input.encoded);
   });
 });
