@@ -4,13 +4,11 @@ import crc from "./crc";
 import {
   decrypt,
   encrypt,
-  encryptPost34,
-  encryptPre34,
   hmac,
-  md5,
 } from "./crypto";
 import { COMMANDS, HEADER_SIZE } from "./constants";
 
+/// for protocol description, see: https://github.com/jasonacox/tinytuya/discussions/260
 class Messenger extends EventEmitter {
   private readonly _key: string | Buffer;
 
