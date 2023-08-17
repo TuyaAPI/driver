@@ -52,7 +52,7 @@ describe.only("device v3.4", () => {
 
   const packetRecevied = subscribeToEvent<Packet>(device, "packet");
   const rawDataReceived = subscribeToEvent<Frame>(device, "rawData");
-  const dataReceived = subscribeToEvent<Frame>(device, "data");
+  const dataReceived = subscribeToEvent<object>(device, "data");
   const stateChanged = subscribeToEvent<unknown>(device, "state-change");
 
   it("can connect", async () => {
@@ -64,20 +64,11 @@ describe.only("device v3.4", () => {
     console.log("packet", packet);
   });
 
-  it("receives raw data", async () => {
-    let data: Frame;
+  it("receives data", async () => {
     device.update();
-    data = await dataReceived;
-    const { payload, ...meta } = data;
-    console.log({
-      meta: JSON.stringify(meta),
-      //payload: payload.toString("base64"),
-      //data: payload.toString("utf8"),
-    });
+    const payload = await dataReceived;
+    console.log('payload', payload);
 
-    const json = JSON.parse(data.payload.toString("ascii"));
-    console.log("json", json);
-
-    expect(json).toHaveProperty("dps");
+    expect(payload).toHaveProperty("dps");
   });
 });

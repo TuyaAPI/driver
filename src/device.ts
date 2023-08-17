@@ -314,7 +314,7 @@ class Device {
           )}`
         );
         this.emit("error", err);
-        
+
         return;
       }
 
@@ -335,11 +335,15 @@ class Device {
       }
 
       this.sessionKey = encrypt(this.key, this.sessionKey, this.version);
-      this._log("Protocol 3.4: Session Key: " + this.sessionKey.toString("hex"));
+      this._log(
+        "Protocol 3.4: Session Key: " + this.sessionKey.toString("hex")
+      );
       this._log("Protocol 3.4: Initialization done");
 
-      
-      this.messenger = new Messenger({ key: this.sessionKey, version: this.version });
+      this.messenger = new Messenger({
+        key: this.sessionKey,
+        version: this.version,
+      });
 
       return;
     }
@@ -347,7 +351,7 @@ class Device {
     let parsedData;
 
     try {
-      parsedData = JSON.parse(frame.payload.toString("ascii"));
+      parsedData = JSON.parse(frame.payload.toString("ascii")) as object;
       this.emit("data", parsedData);
     } catch (_) {
       // Not JSON data
@@ -356,7 +360,7 @@ class Device {
 
     if ("dps" in parsedData) {
       // State update event
-      this._state = { ...this._state, ...parsedData.dps };
+      this._state = { ...this._state, ...(parsedData as { dps: object }).dps };
       this.emit("state-change", this._state);
     }
   }
