@@ -46,12 +46,11 @@ describe("device v3.3", () => {
   });
 });
 
-describe("device v3.4", () => {
+describe.only("device v3.4", () => {
   const deviceOpts = devices.filter((d) => d.version === 3.4)[0];
   const device = new Device({ ...deviceOpts, ip: deviceOpts.ip! });
 
   const packetRecevied = subscribeToEvent<Packet>(device, "packet");
-  const rawDataReceived = subscribeToEvent<Frame>(device, "rawData");
   const dataReceived = subscribeToEvent<object>(device, "data");
   const stateChanged = subscribeToEvent<unknown>(device, "state-change");
 
@@ -80,5 +79,19 @@ describe("device v3.4", () => {
     expect(state).toMatchObject({
       "1": expect.any(Boolean),
     });
+  });
+
+  it("can change state", async () => {
+    const stateChanged = subscribeToEvent<unknown>(device, "state-change");
+    const prev = device.getState();
+    const newState = { ...prev, 1: !prev[1] };
+    device.setState(newState);
+
+    device.update();
+    const state = await stateChanged;
+
+    console.log("state", state);
+
+    expect(state).toMatchObject(newState);
   });
 });
