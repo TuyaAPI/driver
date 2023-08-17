@@ -22,7 +22,7 @@
   "scripts": {
     "lint": "xo",
     "lint-fix": "xo --fix",
-    "test": "vitest",
+    "test": "cross-env DEBUG=\"@tuyapi/driver\" vitest",
     "babel": "babel dist -d dist",
     "build": "tsc && npm run babel",
     "watch": "tsc --watch",
@@ -38,6 +38,7 @@
     "@typescript-eslint/parser": "2.19.2",
     "babel-cli": "6.26.0",
     "babel-preset-env": "1.7.0",
+    "cross-env": "^7.0.3",
     "eslint-config-xo-typescript": "0.24.1",
     "husky": "4.2.3",
     "ts-node": "^10.2.1",
@@ -67,8 +68,7 @@
     "regenerator-runtime": "^0.13.3"
   },
   "husky": {
-    "hooks": {
-    }
+    "hooks": {}
   },
   "publishConfig": {
     "access": "public"

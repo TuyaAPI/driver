@@ -8,6 +8,7 @@ import Frame, { Packet } from "./lib/frame";
 import { COMMANDS, SUPPORTED_PROTOCOLS } from "./lib/constants";
 import { DeviceError } from "./lib/helpers";
 import * as crypto from "crypto";
+import { encrypt, hmac } from "./lib/crypto";
 
 interface Device {
   readonly ip: string;
@@ -42,7 +43,7 @@ export type DeviceEvents =
   | "state-change";
 
 class Device {
-  private readonly _messenger: Messenger;
+  public messenger: Messenger;
 
   private readonly _socket: Socket;
 
@@ -56,7 +57,9 @@ class Device {
   private enableHeartbeat: boolean = true;
 
   private events = new EventEmitter();
-  private _tmpLocalKey: Buffer;
+  private _tmpLocalKey?: Buffer;
+  private _currentSequenceN: number = 0;
+  private sessionKey?: Buffer;
 
   constructor({
     ip,
@@ -76,7 +79,7 @@ class Device {
     Object.assign(this, { ip, port, key, id, gwId, version });
 
     // Create messenger
-    this._messenger = new Messenger({ key, version });
+    this.messenger = new Messenger({ key, version });
 
     // Init with empty state
     this._state = {};
@@ -111,6 +114,7 @@ class Device {
       // Already connected, don't have to do anything
       return;
     }
+    this.updateOnConnect = updateOnConnect ?? this.updateOnConnect;
     this.updateOnConnect = updateOnConnect ?? this.updateOnConnect;
     this.enableHeartbeat = enableHeartbeat ?? this.enableHeartbeat;
     // Connect to device
@@ -148,7 +152,7 @@ class Device {
       ),
     };
 
-    this.send(this._messenger.encode(frame));
+    this.send(this.messenger.encode(frame));
   }
 
   update(): void {
@@ -161,13 +165,14 @@ class Device {
     };
     const command =
       this.version >= 3.4 ? COMMANDS.DP_QUERY_NEW : COMMANDS.DP_QUERY;
-    const frame = {
+    const frame: Frame = {
       version: this.version,
       command,
       payload: Buffer.from(JSON.stringify(payload)),
+      sequenceN: ++this._currentSequenceN,
     };
 
-    const request = this._messenger.encode(frame);
+    const request = this.messenger.encode(frame);
     this.send(request);
   }
 
@@ -194,35 +199,40 @@ class Device {
       payload: Buffer.alloc(0),
     };
 
-    this.send(this._messenger.encode(frame));
+    this.send(this.messenger.encode(frame));
 
     setTimeout(this._recursiveHeartbeat.bind(this), this._heartbeatInterval);
+  }
+
+  private requestSessionKey() {
+    // Negotiate session key
+    // 16 bytes random + 32 bytes hmac
+    try {
+      this._tmpLocalKey = crypto.randomBytes(16);
+      const packet = this.messenger.encode({
+        payload: this._tmpLocalKey,
+        command: COMMANDS.SESS_KEY_NEG_START,
+        version: this.version,
+        sequenceN: ++this._currentSequenceN,
+      });
+
+      this._log("Protocol 3.4: Negotiate Session Key - Send Msg 0x03");
+      this.send(packet);
+    } catch (error) {
+      this._log("Error binding key for protocol 3.4: " + error);
+    }
+
+    return;
   }
 
   private _handleSocketConnect(): void {
     this.connected = true;
 
     this._log("Connected.");
+    this._currentSequenceN = 0;
 
     if (this.version >= 3.4) {
-      // Negotiate session key then emit 'connected'
-      // 16 bytes random + 32 bytes hmac
-      try {
-        this._tmpLocalKey = crypto.randomBytes(16);
-        const packet = this._messenger.encode({
-          payload: this._tmpLocalKey,
-          command: COMMANDS.SESS_KEY_NEG_START,
-          version: this.version,
-          //sequenceN: ++this._currentSequenceN,
-        });
-
-        debug("Protocol 3.4: Negotiate Session Key - Send Msg 0x03");
-        this.send(packet);
-      } catch (error) {
-        debug("Error binding key for protocol 3.4: " + error);
-      }
-
-      return;
+      this.requestSessionKey();
     }
 
     this.emit("connected");
@@ -251,47 +261,104 @@ class Device {
   private _handleSocketData(data: Buffer): void {
     this._log("Received:", data.toString("hex"));
 
-    const packets = this._messenger.splitPackets(data);
+    const packets = this.messenger.splitPackets(data);
     packets.forEach((packet) => {
       try {
         this.emit("packet", packet);
-        const frame = this._messenger.decode(packet.buffer);
+        const frame = this.messenger.decode(packet.buffer);
 
         // Emit Frame as data event
         this.emit("rawData", frame);
 
-        // Check return code
-        if (frame.returnCode !== 0) {
-          // As a non-zero return code should not occur during normal operation, we throw here instead of emitting an error
-          throw new DeviceError(frame.payload.toString("ascii"));
-        }
-
-        // Check if it's a heartbeat packet
-        if (frame.command === COMMANDS.HEART_BEAT) {
-          this._lastHeartbeat = new Date();
-          return;
-        }
-
-        // Atempt to convert to JSON
-        let parsedData;
-
-        try {
-          parsedData = JSON.parse(frame.payload.toString("ascii"));
-          this.emit("data", parsedData);
-        } catch (_) {
-          // Not JSON data
-          return;
-        }
-
-        if ("dps" in parsedData) {
-          // State update event
-          this._state = { ...this._state, ...parsedData.dps };
-          this.emit("state-change", this._state);
-        }
+        this._handleFrame(frame);
       } catch (error) {
         this.emit("error", error);
       }
     });
+  }
+  private _handleFrame(frame: Frame) {
+    if (frame.returnCode !== 0) {
+      // As a non-zero return code should not occur during normal operation, we throw here instead of emitting an error
+      throw new DeviceError(frame.payload.toString("ascii"));
+    }
+
+    if (frame.command === COMMANDS.HEART_BEAT) {
+      this._lastHeartbeat = new Date();
+      return;
+    }
+
+    if (frame.command == COMMANDS.SESS_KEY_NEG_RES) {
+      if (!this._tmpLocalKey) {
+        throw new Error("No local key set");
+      }
+
+      if (this.sessionKey) {
+        this._log("Session key accepted");
+      }
+      // 16 bytes _tmpRemoteKey and hmac on _tmpLocalKey
+      const _tmpRemoteKey = frame.payload.subarray(0, 16);
+      const localHmac = frame.payload.subarray(16, 16 + 32);
+      this._log(
+        "Protocol 3.4: Local Random Key: " + this._tmpLocalKey.toString("hex")
+      );
+      this._log(
+        "Protocol 3.4: Remote Random Key: " + _tmpRemoteKey.toString("hex")
+      );
+
+      const calcLocalHmac = hmac(this.key, this._tmpLocalKey).toString("hex");
+      const expLocalHmac = localHmac.toString("hex");
+      if (expLocalHmac !== calcLocalHmac) {
+        const err = new Error(
+          `HMAC mismatch(keys): expected ${expLocalHmac}, was ${calcLocalHmac}. ${frame.payload.toString(
+            "hex"
+          )}`
+        );
+        this.emit("error", err);
+        
+        return;
+      }
+
+      // Send response 0x05
+      const buffer = this.messenger.encode({
+        version: this.version,
+        payload: hmac(this.key, _tmpRemoteKey),
+        command: COMMANDS.SESS_KEY_NEG_FINISH,
+        sequenceN: ++this._currentSequenceN,
+      });
+
+      this.send(buffer);
+
+      // Calculate session key
+      this.sessionKey = Buffer.from(this._tmpLocalKey);
+      for (let i = 0; i < this._tmpLocalKey.length; i++) {
+        this.sessionKey[i] = this._tmpLocalKey[i] ^ _tmpRemoteKey[i];
+      }
+
+      this.sessionKey = encrypt(this.key, this.sessionKey, this.version);
+      this._log("Protocol 3.4: Session Key: " + this.sessionKey.toString("hex"));
+      this._log("Protocol 3.4: Initialization done");
+
+      
+      this.messenger = new Messenger({ key: this.sessionKey, version: this.version });
+
+      return;
+    }
+
+    let parsedData;
+
+    try {
+      parsedData = JSON.parse(frame.payload.toString("ascii"));
+      this.emit("data", parsedData);
+    } catch (_) {
+      // Not JSON data
+      return;
+    }
+
+    if ("dps" in parsedData) {
+      // State update event
+      this._state = { ...this._state, ...parsedData.dps };
+      this.emit("state-change", this._state);
+    }
   }
 
   private _handleSocketError(error: Error): void {

@@ -1,11 +1,7 @@
 import { EventEmitter } from "events";
 import Frame, { Packet } from "./frame";
 import crc from "./crc";
-import {
-  decrypt,
-  encrypt,
-  hmac,
-} from "./crypto";
+import { decrypt, encrypt, hmac } from "./crypto";
 import { COMMANDS, HEADER_SIZE } from "./constants";
 
 /// for protocol description, see: https://github.com/jasonacox/tinytuya/discussions/260
@@ -113,7 +109,6 @@ class Messenger extends EventEmitter {
 
     const payload = packet.slice(offset, length);
 
-    // Check CRC
     this.checkCrc(packet, payloadSize, packageFromDiscovery);
     return { payload, command, sequenceN, returnCode };
   }
@@ -185,7 +180,11 @@ class Messenger extends EventEmitter {
     return { buffer: packet };
   }
 
-  wrapPacketPost34(payload: Buffer, command: COMMANDS, sequenceN?: number): Packet {
+  wrapPacketPost34(
+    payload: Buffer,
+    command: COMMANDS,
+    sequenceN?: number
+  ): Packet {
     if (
       command !== COMMANDS.DP_QUERY &&
       command !== COMMANDS.HEART_BEAT &&
@@ -213,7 +212,6 @@ class Messenger extends EventEmitter {
     }
     buffer.writeUInt32BE(command, 8);
     buffer.writeUInt32BE(payload.length + 0x24, 12);
-
 
     // Add payload, crc, and suffix
     payload.copy(buffer, 16);
@@ -278,11 +276,11 @@ class Messenger extends EventEmitter {
   encryptPost34(frame: Frame): Buffer {
     let payload = frame.payload;
     //if (payload.length > 0) {
-      // is null messages need padding - PING work without
-      const padding = 0x10 - (payload.length & 0xf);
-      const buf34 = Buffer.alloc(payload.length + padding, padding);
-      payload.copy(buf34);
-      payload = buf34;
+    // is null messages need padding - PING work without
+    const padding = 0x10 - (payload.length & 0xf);
+    const buf34 = Buffer.alloc(payload.length + padding, padding);
+    payload.copy(buf34);
+    payload = buf34;
     //}
     const encrypted = encrypt(this._key, payload, this._version);
     //payload = Buffer.from(payload);

@@ -4,9 +4,8 @@ import { subscribeToEvent } from "./helpers";
 import { devices } from "./devices.conf";
 import { COMMANDS } from "./lib/constants";
 
-const deviceOpts = devices[0];
-
-describe("device", () => {
+describe("device v3.3", () => {
+  const deviceOpts = devices.filter((d) => d.version === 3.3)[0];
   const device = new Device({ ...deviceOpts, ip: deviceOpts.ip! });
   const packetRecevied = subscribeToEvent<Packet>(device, "packet");
   const dataReceived = subscribeToEvent<Frame>(device, "rawData");
@@ -31,8 +30,7 @@ describe("device", () => {
         meta: JSON.stringify(meta),
         payload: payload.toString("base64"),
         data: payload.toString("utf8"),
-      })
-
+      });
     } while (data.command !== COMMANDS.DP_QUERY);
 
     const json = JSON.parse(data.payload.toString("ascii"));
@@ -45,5 +43,41 @@ describe("device", () => {
     device.update();
     const data = await stateChanged;
     console.log("state changed", data);
+  });
+});
+
+describe.only("device v3.4", () => {
+  const deviceOpts = devices.filter((d) => d.version === 3.4)[0];
+  const device = new Device({ ...deviceOpts, ip: deviceOpts.ip! });
+
+  const packetRecevied = subscribeToEvent<Packet>(device, "packet");
+  const rawDataReceived = subscribeToEvent<Frame>(device, "rawData");
+  const dataReceived = subscribeToEvent<Frame>(device, "data");
+  const stateChanged = subscribeToEvent<unknown>(device, "state-change");
+
+  it("can connect", async () => {
+    const connected = subscribeToEvent(device, "connected");
+    device.connect({ updateOnConnect: false, enableHeartbeat: false });
+
+    await connected;
+    const packet = await packetRecevied;
+    console.log("packet", packet);
+  });
+
+  it("receives raw data", async () => {
+    let data: Frame;
+    device.update();
+    data = await dataReceived;
+    const { payload, ...meta } = data;
+    console.log({
+      meta: JSON.stringify(meta),
+      //payload: payload.toString("base64"),
+      //data: payload.toString("utf8"),
+    });
+
+    const json = JSON.parse(data.payload.toString("ascii"));
+    console.log("json", json);
+
+    expect(json).toHaveProperty("dps");
   });
 });
