@@ -46,7 +46,7 @@ describe("device v3.3", () => {
   });
 });
 
-describe.only("device v3.4", () => {
+describe("device v3.4", () => {
   const deviceOpts = devices.filter((d) => d.version === 3.4)[0];
   const device = new Device({ ...deviceOpts, ip: deviceOpts.ip! });
 
