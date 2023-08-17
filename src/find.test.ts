@@ -34,7 +34,7 @@ describe("find", () => {
           meta: JSON.stringify(meta),
           payload: payload.toString("base64"),
           data: payload.toString("utf8"),
-        })
+        });
         try {
           const data = JSON.parse(payload.toString("ascii"));
           resolve(data);
@@ -46,7 +46,7 @@ describe("find", () => {
       }
     });
     find.start();
-    
+
     await promise;
   });
 
@@ -67,7 +67,7 @@ describe("find", () => {
     find.start();
 
     await promise;
-  });  
+  });
 });
 
 describe("device list", () => {
@@ -79,7 +79,6 @@ describe("device list", () => {
   let toQuery = [...devices];
 
   find.on("broadcast", (message: DiscoveryMessage) => {
-    
     const deviceConfig = devices.find((device) => device.id === message.gwId);
     if (!deviceConfig) {
       console.log(`unknown device ${message.gwId}`);
@@ -90,19 +89,23 @@ describe("device list", () => {
     );
     console.log(message);
 
-    const dev = new Device({ ...deviceConfig, ip: message.ip, version: Number.parseFloat(message.version) });
-    
+    const dev = new Device({
+      ...deviceConfig,
+      ip: message.ip,
+      version: Number.parseFloat(message.version),
+    });
+
     found[message.gwId] = dev;
-    
-    dev.connect();
+
+    dev.connect({ enableHeartbeat: false, updateOnConnect: true });
     dev.on("state-change", (data) => {
       toQuery = toQuery.filter((device) => device.id !== message.gwId);
       if (toQuery.length === 0) {
         resloveQueried(found);
       }
     });
-    dev.update();
-    
+    //dev.update();
+
     toFind = toFind.filter((device) => device.id !== message.gwId);
     if (toFind.length === 0) {
       resolveFound(found);
@@ -119,10 +122,14 @@ describe("device list", () => {
     const finished = await Promise.race([allQueried, timeout]);
     if (toQuery.length > 0) {
       const missingState = toQuery;
-      console.log('missing state for', missingState);
+      console.log("missing state for", missingState);
     }
 
-    console.log(Object.entries(found).map(([id, dev]) => dev.getState() || `no state for ${id}`));
+    console.log(
+      Object.entries(found).map(
+        ([id, dev]) => dev.getState() || `no state for ${id}`
+      )
+    );
     expect(toQuery).toEqual([]);
   });
 });

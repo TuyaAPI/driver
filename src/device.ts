@@ -115,7 +115,6 @@ class Device {
       return;
     }
     this.updateOnConnect = updateOnConnect ?? this.updateOnConnect;
-    this.updateOnConnect = updateOnConnect ?? this.updateOnConnect;
     this.enableHeartbeat = enableHeartbeat ?? this.enableHeartbeat;
     // Connect to device
     this._log("Connecting...");
@@ -233,8 +232,12 @@ class Device {
 
     if (this.version >= 3.4) {
       this.requestSessionKey();
+    } else {
+      this.afterConnect();
     }
+  }
 
+  private afterConnect() {
     this.emit("connected");
 
     this._lastHeartbeat = new Date();
@@ -345,6 +348,8 @@ class Device {
         version: this.version,
       });
 
+      this.afterConnect();
+      
       return;
     }
 

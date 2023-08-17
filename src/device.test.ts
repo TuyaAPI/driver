@@ -67,8 +67,18 @@ describe.only("device v3.4", () => {
   it("receives data", async () => {
     device.update();
     const payload = await dataReceived;
-    console.log('payload', payload);
+    console.log("payload", payload);
 
     expect(payload).toHaveProperty("dps");
+  });
+
+  it("receives state change", async () => {
+    device.update();
+    const state = await stateChanged;
+    console.log("state", state);
+
+    expect(state).toMatchObject({
+      "1": expect.any(Boolean),
+    });
   });
 });
