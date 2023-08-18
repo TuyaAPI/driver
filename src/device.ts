@@ -282,8 +282,8 @@ class Device {
   }
   private _handleFrame(frame: Frame) {
     if (frame.returnCode !== 0) {
-      // As a non-zero return code should not occur during normal operation, we throw here instead of emitting an error
-      throw new DeviceError(frame.payload.toString("ascii"));
+      //console.log("Non-zero return code:", frame.returnCode);
+      this.emit("error", new DeviceError(`non-zero return code (${frame.returnCode}) ${frame.payload.toString("ascii")}`));
     }
 
     if (frame.command === COMMANDS.HEART_BEAT) {

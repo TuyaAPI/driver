@@ -50,7 +50,11 @@ describe.only("device v3.3", () => {
 
   it("can change state", async () => {
     const prev = device.getState();
-    const newState = { ...prev, 1: !prev[1] };
+    // const primary = prev[1];
+    // const value = primary === 'open' ? 'close' : 'open';
+    // const newState = { 1: value };
+
+    const newState = { 7: !prev[7]}; // backlight (probably)
     
     console.log("newState", newState);
     device.setState(newState);
@@ -58,7 +62,8 @@ describe.only("device v3.3", () => {
     
     // first, no change
     const state1 = await stateChanged();
-    // then, change!
+    
+    device.update();
     const state = await stateChanged();
 
     console.log("state", state);
@@ -108,10 +113,17 @@ describe("device v3.4", () => {
 
   it("can change state", async () => {
     const prev = device.getState();
-    const newState = { ...prev, 1: !prev[1] };
+    const newState = { 1: !prev[1] };
+    
+    console.log("newState", newState);
     device.setState(newState);
+    console.log("states", states);
+    
+    // first, no change
+    const state1 = await stateChanged();
 
     device.update();
+    // then, change!
     const state = await stateChanged();
 
     console.log("state", state);

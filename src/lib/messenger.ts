@@ -61,7 +61,9 @@ class Messenger extends EventEmitter {
   decode(message: Buffer): Frame {
     const packet = this.checkPacket(message);
     const { command, returnCode, payload } = this.parsePacket(packet);
-
+    if (returnCode != 0) {
+      console.error(`return code Error: ${returnCode}`);
+    }
     const hasVersionPrefix = payload.indexOf(this._version.toString()) === 0;
     const shouldDecrypt =
       payload.length &&
