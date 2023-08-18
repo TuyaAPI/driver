@@ -51,14 +51,29 @@ function encryptPost34(key: string | Buffer, data: Buffer): Buffer {
   return encrypted;
 }
 
-export function decrypt(key: string | Buffer, data: Buffer): Buffer {
+export function decrypt(key: string | Buffer, data: Buffer, version: number): Buffer {
   try {
+
+    if (data.indexOf(version.toString()) === 0) {
+      if (version === 3.3 || version === 3.2) {
+        // Remove 3.3/3.2 header
+        data = data.slice(15);
+      } else {
+        // Data has version number and is encoded in base64
+
+        // Remove prefix of version number and MD5 hash
+        data = data.slice(19);
+        // Decode incoming data as base64
+        //format = 'base64';
+      }
+    }
+
     const decipher = createDecipheriv("aes-128-ecb", key, null);
     return Buffer.concat([decipher.update(data), decipher.final()]);
   } catch (err) {
     if (key !== UDP_HASHED_KEY) {
       // Try the universal key, in case it's a new UDP message format
-      return decrypt(UDP_HASHED_KEY, data);
+      return decrypt(UDP_HASHED_KEY, data, version);
     }
     throw err;
   }

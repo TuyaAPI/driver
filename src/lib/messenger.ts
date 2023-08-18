@@ -62,10 +62,11 @@ class Messenger extends EventEmitter {
     const packet = this.checkPacket(message);
     const { command, returnCode, payload } = this.parsePacket(packet);
 
+    const hasVersionPrefix = payload.indexOf(this._version.toString()) === 0;
     const shouldDecrypt =
       payload.length &&
-      (this._version >= 3.3 || payload.indexOf(this._version.toString()) === 0);
-    const decrypted = shouldDecrypt ? decrypt(this._key, payload) : payload;
+      (this._version >= 3.3 || hasVersionPrefix);
+    const decrypted = shouldDecrypt ? decrypt(this._key, payload, this._version) : payload;
 
     // TODO: leftover can contain another packet, so we should parse it
     const frame: Frame = {

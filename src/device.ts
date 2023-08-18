@@ -196,7 +196,7 @@ class Device {
     const frame: Frame = {
       version: this.version,
       command: COMMANDS.HEART_BEAT,
-      payload: Buffer.alloc(0),\
+      payload: Buffer.alloc(0),
     };
 
     this.send(this.messenger.encode(frame));
