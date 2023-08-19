@@ -100,7 +100,7 @@ describe("protocol 3.4", () => {
   it("can encode 3.4", () => {
     const payload = { devId: "002004265ccf7fb1b659", dps: { 1: true, 2: 0 } };
 
-    const messenger = new Messenger({ key: "bbe88b3f4106d354" });
+    const messenger = new Messenger({ key: "bbe88b3f4106d354", version: 3.4 });
 
     const encoded = messenger.encode({
       command: COMMANDS.DP_QUERY,
@@ -110,6 +110,34 @@ describe("protocol 3.4", () => {
 
     expect(encoded.buffer.toString("base64")).toEqual(
       "AABVqgAAAAAAAAAKAAAAZM6wPDit69yTIlF6Vw1mrjaaWOAJtnPK2erG+GH9eTIzyLy7WILHEXvMIKna/snRTnRLFLfvV1r7z5Z2CkLoDcFOimZpyKDTXr3LCUCvrohlOJtaQLNCDG3MmZjvy8F/ugAAqlU="
+    );
+  });
+  it("can encode 3.4 dps set", () => {
+    const payload = {
+      data: {
+        ctype: 0,
+        devId: "bfbee61e344c952b34gfia",
+        gwId: "bfbee61e344c952b34gfia",
+        uid: "",
+        dps: { "1": true },
+      },
+      protocol: 5,
+      t: 1692426805,
+    };
+
+    const messenger = new Messenger({
+      key: Buffer.from("30bc1e8957ec28a2f70122d8c7cb326c", "hex"),
+    });
+
+    const encoded = messenger.encode({
+      command: COMMANDS.CONTROL_NEW,
+      version: 3.4,
+      payload: Buffer.from(JSON.stringify(payload), "utf8"),
+      sequenceN: 28,
+    });
+
+    expect(encoded.buffer.toString("hex")).toEqual(
+      "000055aa0000001c0000000d000000c44f76d6bef9a7076a0f29c3fd6ecc137baa95fbfd70ca73916b8855798221457afd2c7ba1e6f354d777de4b2c44f3f16fd258d4ed09ffc99307630f9cb6c4da3fd6e8db2d202b65ebd08c3d6f70bcd8d2d258d4ed09ffc99307630f9cb6c4da3f3942e295e85c26ddf1bac04e0cd25a20f7448944d5e74bfb5450739cd1751f8e21563306a2a49d1d97dc75020659dc45b8f0f24f958da8b9de768fdbea13ea6373a36bd6dfa964afe710f65f9273fdee49de0cd078b30cbb6996a177dd9c89490000aa55"
     );
   });
   it("can encode 3.4", () => {

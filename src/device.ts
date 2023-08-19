@@ -135,20 +135,45 @@ class Device {
   }
 
   setState(dps: DataPointSet): void {
-    const timestamp = Math.round(new Date().getTime() / 1000);
+    function payload33({ gwId, devId }: { gwId: string; devId: string }) {
+      const timestamp = Math.round(new Date().getTime() / 1000);
+      const payload = {
+        gwId,
+        devId,
+        uid: "",
+        t: timestamp,
+        dps,
+      };
+      const command = COMMANDS.CONTROL;
+      return { payload, command };
+    }
+
+    function payload34({ gwId, devId }: { gwId: string; devId: string }) {
+      const timestamp = Math.round(new Date().getTime() / 1000);
+      const payload = {
+        data: {
+          ctype: 0,
+          gwId,
+          devId,
+          uid: "",
+          dps,
+        },
+        protocol: 5,
+        t: timestamp,
+      };
+      const command = COMMANDS.CONTROL_NEW;
+      return { payload, command };
+    }
+
+    const { payload, command } =
+      this.version <= 3.3
+        ? payload33({ gwId: this.gwId, devId: this.id })
+        : payload34({ gwId: this.gwId, devId: this.id });
 
     const frame: Frame = {
       version: this.version,
-      command: COMMANDS.CONTROL,
-      payload: Buffer.from(
-        JSON.stringify({
-          gwId: this.gwId,
-          devId: this.id,
-          uid: "",
-          t: timestamp,
-          dps,
-        })
-      ),
+      command,
+      payload: Buffer.from(JSON.stringify(payload)),
       sequenceN: ++this._currentSequenceN,
     };
 
@@ -283,7 +308,14 @@ class Device {
   private _handleFrame(frame: Frame) {
     if (frame.returnCode !== 0) {
       //console.log("Non-zero return code:", frame.returnCode);
-      this.emit("error", new DeviceError(`non-zero return code (${frame.returnCode}) ${frame.payload.toString("ascii")}`));
+      this.emit(
+        "error",
+        new DeviceError(
+          `non-zero return code (${frame.returnCode}) ${frame.payload.toString(
+            "ascii"
+          )}`
+        )
+      );
     }
 
     if (frame.command === COMMANDS.HEART_BEAT) {
