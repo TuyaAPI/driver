@@ -126,8 +126,6 @@ describe("device v3.4", () => {
     device.setState(newState);
     console.log("states", states);
     
-    device.update();
-    // first, no change
     const state1 = await stateChanged();
 
     device.update();
